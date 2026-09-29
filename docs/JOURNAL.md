@@ -38,3 +38,11 @@
 - No paid VLM calls were made during this change.
 
 Next step: run GPT-6 Luna again on the same frozen 100-photo evaluation set using the simplified built-in prompt, then compare it directly with run 2.
+
+## 2026-09-29 — Human ground-truth correction after manual review
+
+- Independent manual review of disagreements led to one ground-truth correction: image 12, `3 → 2`. It remains album-worthy, but glare affecting the scene/face and imperfect readability of the swans make `2` more appropriate than `3`.
+- Images 69, 95, 91, 97, 77 and 41 were confirmed at `0`; no other labels changed. The correction uses the normal annotation storage mechanism, preserving history and provenance.
+- Runs 2, 3, 4 and 5 remain immutable. No VLM run was relaunched and no paid VLM call was made.
+- Future reports use the corrected human ground truth: `0: 26`, `1: 32`, `2: 29`, `3: 13`. Local comparisons for runs 2/3/4, 2/5 and 2/3/4/5 were regenerated from existing outputs.
+- The [baseline v1 report](experiments/2026-09-29-isolated-photo-baseline-v1.md) remains deliberately unchanged as a historical snapshot of results before this correction.
