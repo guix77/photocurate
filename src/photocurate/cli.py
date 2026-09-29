@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 from jsonschema.exceptions import SchemaError
 
 from .annotate import annotate
+from .convention import JUDGEMENT_TARGET_ID
 from .media import index_corpus
 from .provider import DEFAULT_PROMPT, DEFAULT_SCHEMA, parse_json
 from .report import write_reports
@@ -72,6 +73,11 @@ def parser() -> argparse.ArgumentParser:
     run.add_argument("name", help="evaluation-set name")
     run.add_argument("--model", required=True, help="OpenRouter model ID; no default model")
     run.add_argument("--prompt", type=Path, help="UTF-8 prompt file; default is built in")
+    run.add_argument(
+        "--judgement-target",
+        metavar="ID",
+        help="explicit semantic target for --prompt; omitted means no agreement metrics",
+    )
     run.add_argument("--schema", type=Path, help="JSON Schema file; default is built in")
     run.add_argument(
         "--score-field", default="album_score", help="numeric field; dot paths supported"
@@ -138,11 +144,17 @@ def dispatch(args, store: Store):
         if (args.command == "resume" or not args.prepare_only) and not key:
             raise ValueError("OPENROUTER_API_KEY is missing; set it in .env or the environment")
         if args.command == "run":
+            if args.judgement_target is not None and args.prompt is None:
+                raise ValueError(
+                    "--judgement-target requires --prompt; the built-in target is fixed"
+                )
+            target = args.judgement_target if args.prompt else JUDGEMENT_TARGET_ID
             config = {
                 "model": args.model,
                 "prompt": args.prompt.read_text(encoding="utf-8")
                 if args.prompt
                 else DEFAULT_PROMPT,
+                "judgement_convention": {"id": target} if target is not None else None,
                 "schema": parse_json(args.schema.read_text(encoding="utf-8"))
                 if args.schema
                 else DEFAULT_SCHEMA,

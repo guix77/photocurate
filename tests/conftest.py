@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
+from photocurate.convention import JUDGEMENT_TARGET_ID
 from photocurate.media import index_corpus
 from photocurate.provider import DEFAULT_PROMPT, DEFAULT_SCHEMA
 from photocurate.store import Store
@@ -36,6 +37,7 @@ def config():
     return {
         "model": "example/vision-model",
         "prompt": DEFAULT_PROMPT,
+        "judgement_convention": {"id": JUDGEMENT_TARGET_ID},
         "schema": DEFAULT_SCHEMA,
         "score_field": "album_score",
         "proxy_size": 512,

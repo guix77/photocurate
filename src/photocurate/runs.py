@@ -6,7 +6,7 @@ import json
 import httpx
 
 from . import __version__
-from .convention import JUDGEMENT_CONVENTION, MODEL_INSTRUCTIONS
+from .convention import judgement_target_id
 from .media import ensure_proxy
 from .provider import ENDPOINT, evaluate_image, response_format, validate_config
 from .store import Store, dumps, now
@@ -15,8 +15,9 @@ from .store import Store, dumps, now
 def create_run(store: Store, name: str, config: dict) -> int:
     validate_config(config)
     config = dict(config)
-    if MODEL_INSTRUCTIONS not in config["prompt"]:
-        config["prompt"] = MODEL_INSTRUCTIONS + "\n\n" + config["prompt"]
+    convention = config.get("judgement_convention")
+    if convention is not None and judgement_target_id(convention) is None:
+        raise ValueError("Judgement target must be a non-empty ID or unspecified")
     evaluation = store.get_set(name)
     members = store.members(evaluation["id"])
     proxies = [ensure_proxy(store, row["version_id"], config["proxy_size"]) for row in members]
@@ -29,7 +30,7 @@ def create_run(store: Store, name: str, config: dict) -> int:
         "privacy_policy": "ZDR and no training enforced by OpenRouter account/key",
         "application_version": __version__,
         "model_context": "image_only",
-        "judgement_convention": JUDGEMENT_CONVENTION,
+        "judgement_convention": {"id": judgement_target_id(convention)} if convention else None,
         "stream": False,
     }
     with store.db:

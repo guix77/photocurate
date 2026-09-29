@@ -112,15 +112,15 @@ Each additional component must solve an observed limitation in the evaluation re
 
 ### 3.8 Judge realistic correction potential
 
-Human labels and VLM scores judge the photo's album-worthiness **after reasonable, standard, non-generative corrections that could be automated**, rather than strictly as presented. The same convention applies to both.
+The stable semantic judgement target is **`standard_non_generative_v1`**: judge each photo in isolation for a family album, using only visible content and no personal knowledge or external context. Assess album-worthiness **after ordinary, non-generative corrections that could reasonably be automated**, rather than strictly as presented. Do not assume blur, lost detail or missing content can be recovered.
 
-Permitted corrections include cropping, straightening, moderate exposure and colour adjustments, red-eye correction, mild denoising and sharpening. Do not penalize minor flaws when these corrections could reasonably address them. A crop must preserve a useful composition and sufficient visible detail for an album.
-
-Judge only potential supported by visible content. Do not imagine content outside the frame, reconstruct missing content, or assume recovery of severely degraded detail. Cut-off subjects, poor expressions, substantial blur, and detail lost in severely underexposed or overexposed areas remain penalties when the permitted corrections cannot address them.
+Ordinary corrections can include cropping, straightening, moderate exposure and colour adjustments, red-eye correction, mild denoising and sharpening. These examples document the rubric; the per-image instructions need not repeat a catalogue of corrections or defects.
 
 Be conservative when recoverability is unclear. Reduced proxies limit technical judgement; they do not justify assuming that unseen detail exists in the original.
 
 The v1 measures **estimated correction potential**. It does not apply these corrections or demonstrate that an automated correction pipeline can realize that potential.
+
+The target ID describes the judgement task, not the exact instruction wording. Editorial simplifications and model prompt experiments can retain this ID when they preserve the target. A genuinely different judgement target requires a new ID. Findings from manually inspected failure cases remain experimental observations rather than new prompt rules.
 
 ---
 
@@ -186,7 +186,7 @@ A human judgement attached to an image in an evaluation set.
 
 These labels are the reference for measuring **agreement with the annotator**, not a universal ground truth about what makes a good family photo. Evaluation conclusions describe how well the model matches that annotator's judgement of photos in isolation.
 
-The judgement uses the correction-potential convention in section 3.8. Persist the convention's version and exact instructions with each label and its correction history. Earlier labels must not silently acquire a new meaning when the convention changes.
+The judgement uses the semantic target in section 3.8. Persist its ID and the exact human instructions displayed with each label and its correction history. Preserve existing labels and their original instruction text. An editorial simplification under the same target does not require reannotation. Earlier labels must not silently acquire a different target or new provenance.
 
 The v1 scale is:
 
@@ -214,7 +214,7 @@ A run must preserve enough information to understand exactly what was tested, in
 - image/proxy size;
 - exact prompt or prompt version/content;
 - exact structured-output contract/schema;
-- judgement convention version and exact instructions;
+- declared semantic judgement target ID, or an explicitly unspecified target, independently of the exact prompt;
 - creation time.
 
 The exact representation is an implementation choice.
@@ -241,7 +241,7 @@ No product UI is required in v1.
 
 A lightweight local annotation workflow is sufficient. On macOS, the preferred interaction is to display the current image in Preview without stealing focus from the terminal, allowing the reviewer to keep typing labels in the terminal.
 
-For every image, the annotation prompt must visibly repeat the correction-potential instructions in section 3.8 and the label scale:
+For every image, the annotation prompt must visibly repeat short human instructions expressing the semantic target in section 3.8 and the label scale:
 
 ```text
 0 = à jeter
@@ -266,11 +266,15 @@ However, every candidate prompt/schema must satisfy the following functional con
 - input is the image proxy;
 - v1 evaluation uses **image only** as model context;
 - collected datetime and geolocation are intentionally withheld from the model in this phase so the experiment isolates visual judgement;
-- judgement follows the same realistic, non-generative correction-potential convention as human labels (section 3.8), including its limits; custom prompts must preserve this convention;
+- agreement with the current human labels requires the same declared semantic judgement target (section 3.8), including its limits;
 - output is structured and machine-validatable;
 - output contains at least one value that allows photos to be ranked by album-worthiness;
-- runs using different prompts or schemas remain comparable through the human labels;
-- the exact prompt, exact schema and judgement convention are persisted with each run.
+- runs using different prompts or schemas remain comparable through the same frozen human labels when they declare the same semantic target;
+- the exact prompt, exact schema and independently declared semantic target ID are persisted with each run.
+
+The built-in default prompt is explicitly associated with `standard_non_generative_v1`. A custom `--prompt` must declare its target with `--judgement-target ID` to be eligible for agreement metrics; otherwise its target is stored as unspecified and it is excluded from agreement metrics against labelled data. Never infer semantic equivalence from prompt text or silently assign the current target to an arbitrary custom prompt. Send custom prompts exactly as supplied, without automatic instruction prefixing.
+
+Persisted run configurations remain immutable, including their prompt and declared target. Existing convention snapshots can contain instruction strings, but those strings are provenance rather than compatibility keys. No SQLite migration or rewrite of existing labels or runs is required for this separation.
 
 The project may later evaluate whether explicit intermediate attributes improve judgement, but no such attribute set is prescribed here.
 
@@ -304,7 +308,7 @@ The core evaluation compares model ordering against human judgement on the froze
 
 Quality metrics measure agreement with the annotator. Approximately 100 images are sufficient to start measuring, but close results or too few labels in classes `0` or `3` require enlarging the same set as described above and comparing models on its expanded, fixed membership before concluding.
 
-Agreement metrics must use labels and runs with matching judgement conventions. Report incompatible or unspecified earlier labels explicitly rather than treating them as correction-potential labels. Annotation can revisit those images under the new instructions while retaining the previous labels in history.
+Agreement metrics must use labels and runs with the same explicitly recorded semantic judgement target ID, independently of exact instruction text. Different or unspecified targets are incompatible, including two unspecified targets; never infer a target from saved prompt or instruction text. Report the excluded labels explicitly. Annotation can revisit labels with different or unspecified targets while retaining previous labels and instructions in history. Editorial simplification under the existing target keeps the current 100 labels usable without reannotation.
 
 Primary quality views should include:
 

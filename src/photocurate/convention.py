@@ -1,30 +1,27 @@
-"""The shared, versioned judgement convention for human labels and VLM experiments."""
+"""Stable semantic target and exact human instructions for annotation provenance."""
 
-MODEL_INSTRUCTIONS = """Evaluate the photo's album-worthiness after reasonable, standard,
-non-generative corrections that could be automated: cropping, straightening, moderate
-exposure and colour adjustments, red-eye correction, mild denoising and sharpening.
-Do not penalize minor flaws when these corrections could reasonably address them.
-A crop must preserve a useful composition and sufficient visible detail for an album.
-Assess only potential supported by visible image content. Do not imagine content outside
-the frame, reconstruct missing content, or recover severely degraded detail.
-Still penalize cut-off subjects, poor expressions, substantial blur, and detail lost in
-severely underexposed or overexposed areas when these corrections cannot address them.
-Be conservative when recoverability is unclear; a reduced proxy limits technical judgement.
-You are estimating correction potential, not verifying an actual correction pipeline."""
+JUDGEMENT_TARGET_ID = "standard_non_generative_v1"
 
-HUMAN_INSTRUCTIONS = """Juger le potentiel après corrections standard non génératives
-raisonnablement automatisables : recadrage, redressement, exposition/couleurs modérées,
-yeux rouges, léger débruitage/netteté.
-Ne pas pénaliser un défaut mineur raisonnablement corrigeable. Le recadrage doit garder
-une composition exploitable et assez de détails visibles pour un album.
-Ne pas imaginer de contenu hors cadre, reconstruire du contenu absent ni récupérer des
-détails fortement dégradés. Sujet coupé, expression ratée, flou important et détails perdus
-dans les zones très sous-exposées ou surexposées restent pénalisants si non corrigeables.
-Rester prudent si la récupération est incertaine : le proxy limite le jugement technique.
-On estime un potentiel ; on ne vérifie pas ici un traitement photo réel."""
+HUMAN_INSTRUCTIONS = """Évalue cette photo seule pour un album familial, uniquement d’après le
+contenu visible, sans connaissances personnelles ni contexte extérieur. Juge son potentiel
+après corrections ordinaires, non génératives et raisonnablement automatisables.
+Ne suppose pas que le flou, les détails perdus ou le contenu absent puissent être récupérés.
+Reste prudent en cas d’incertitude."""
 
 JUDGEMENT_CONVENTION = {
-    "id": "standard_non_generative_v1",
-    "model_instructions": MODEL_INSTRUCTIONS,
+    "id": JUDGEMENT_TARGET_ID,
     "human_instructions": HUMAN_INSTRUCTIONS,
 }
+
+
+def judgement_target_id(convention: dict | None) -> str | None:
+    """Read only an explicit target ID, including from existing convention snapshots."""
+    if not isinstance(convention, dict):
+        return None
+    target = convention.get("id")
+    return target if isinstance(target, str) and target.strip() else None
+
+
+def matching_targets(first: dict | None, second: dict | None) -> bool:
+    target = judgement_target_id(first)
+    return target is not None and target == judgement_target_id(second)

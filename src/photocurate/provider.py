@@ -9,20 +9,24 @@ from pathlib import Path
 import httpx
 from jsonschema import Draft202012Validator
 
-from .convention import MODEL_INSTRUCTIONS
 from .store import dumps
 
 ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
-DEFAULT_PROMPT = f"""Judge this personal photo in isolation for inclusion in a family photo book.
-Use only the visible image. You have no date, location, personal history or other photos.
-{MODEL_INSTRUCTIONS}
-Give album_score as an integer from 0 to 100 (higher means more worth keeping).
-Consider visible emotional or narrative interest, composition and technical quality.
-Do not invent personal significance, relationships or identities.
-Score anchors: 0 = discard; 33 = weak, useful only for context;
-67 = good album photo; 100 = strong, almost certain to keep.
-In reason, briefly explain the score, any corrections assumed, remaining flaws and uncertainty.
-Return only the JSON object specified by the response schema."""
+DEFAULT_PROMPT = """Judge this photo in isolation for a family photo book, using only visible
+content and no personal or external context.
+
+Assess its potential after ordinary, non-generative corrections that could
+reasonably be automated. Do not assume blur, lost detail or missing content
+can be recovered. Be conservative when uncertain.
+
+Consider emotional or narrative interest, composition and technical quality.
+
+Return only JSON matching the response schema:
+- album_score: integer 0–100, higher means more worth keeping.
+  Anchors: 0 = discard; 33 = weak, useful only for context;
+  67 = good album photo; 100 = strong, almost certain to keep.
+- reason: briefly justify the score; mention assumed corrections or
+  uncertainty when relevant."""
 DEFAULT_SCHEMA = {
     "type": "object",
     "properties": {

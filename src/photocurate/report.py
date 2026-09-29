@@ -7,6 +7,7 @@ from collections import Counter
 from pathlib import Path
 from statistics import mean
 
+from .convention import judgement_target_id, matching_targets
 from .store import Store, dumps, now
 
 
@@ -80,7 +81,7 @@ def describe_run(store: Store, run_id: int, top_k: list[int]) -> dict:
         label_convention = (
             json.loads(row["label_convention_json"]) if row["label_convention_json"] else None
         )
-        matches = label_convention == config.get("judgement_convention")
+        matches = matching_targets(label_convention, config.get("judgement_convention"))
         row["label_matches_convention"] = row["label"] is not None and matches
 
     def numerically_labelled(row):
@@ -244,16 +245,19 @@ def markdown(reports: list[dict]) -> str:
             "",
         ]
         same_convention = all(
-            report["config"].get("judgement_convention")
-            == reports[0]["config"].get("judgement_convention")
+            matching_targets(
+                report["config"].get("judgement_convention"),
+                reports[0]["config"].get("judgement_convention"),
+            )
             for report in reports[1:]
         )
         lines += [
-            "Comparison judgement conventions: "
+            "Comparison judgement targets: "
             + (
                 "identical."
                 if same_convention
-                else "**different — agreement metrics do not measure the same judgement target.**"
+                else "**different or unspecified — agreement metrics require the same declared "
+                "judgement target.**"
             ),
             "",
         ]
@@ -280,19 +284,16 @@ def markdown(reports: list[dict]) -> str:
             f"Set: {cell(report['set_name'])}; run status: {report['status']}; "
             f"frozen size: {report['run_size']}; current set size: {report['current_set_size']}.",
             "",
-            "Judgement convention: "
+            "Judgement target: "
             + cell(
-                (report["config"].get("judgement_convention") or {}).get(
-                    "id", "unspecified (legacy)"
-                )
+                judgement_target_id(report["config"].get("judgement_convention")) or "unspecified"
             )
-            + ". Recorded correction-potential conventions estimate what reasonable standard "
-            "non-generative corrections could achieve; they do not validate a correction pipeline.",
+            + ". Compatibility uses declared target IDs, independently of exact instruction text.",
             "",
             f"Labels: {cell(dumps(report['label_counts']))}. "
             f"Annotators: {cell(', '.join(report['annotators'])) or 'none'}.",
             "",
-            f"Labels excluded for incompatible judgement conventions: "
+            f"Labels excluded for different or unspecified judgement targets: "
             f"{quality['convention_mismatches']}. Stored label counts above include these labels.",
             "",
             f"Attempts: {op['attempted']}; pending: {op['pending']}; "
@@ -310,7 +311,7 @@ def markdown(reports: list[dict]) -> str:
             f"p95 {number(op['latency_ms']['p95'], 1)}.",
             "",
             "Spearman uses successful outputs with numeric human labels; '?' is excluded. "
-            "All agreement metrics require matching judgement conventions. "
+            "All agreement metrics require matching, explicitly declared judgement target IDs. "
             "Top-K is selected among all successful outputs before excluding unlabelled "
             "images, '?' labels or incompatible labels from its precision denominator. "
             "Recall includes all compatibly labelled "

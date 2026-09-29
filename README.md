@@ -75,18 +75,12 @@ On macOS, Preview displays the current image proxy without taking focus from the
 uv run photocurate annotate baseline --annotator guix
 ```
 
-Both the annotator and the VLM judge **album-worthiness after reasonable, standard,
-non-generative corrections that could be automated**: cropping, straightening, moderate
-exposure and colour adjustments, red-eye correction, mild denoising and sharpening.
-Minor, reasonably correctable flaws should not reduce the score. A crop must preserve
-a useful composition and sufficient visible detail for an album.
-
-Assess only potential supported by visible content. Do not imagine content outside the
-frame, reconstruct missing content, or assume recovery of severely degraded detail.
-Cut-off subjects, poor expressions, substantial blur and detail lost in severely
-underexposed or overexposed areas remain penalties when these corrections cannot help.
-Be conservative about uncertain recovery: the proxy limits technical judgement.
-The annotation prompt repeats these instructions alongside the scale for every image.
+The stable judgement target is `standard_non_generative_v1`: judge each photo in
+isolation for a family album, using only visible content and no personal knowledge or
+external context. Assess its potential after ordinary, non-generative corrections that
+could reasonably be automated. Do not assume blur, lost detail or missing content can
+be recovered; be conservative when uncertain. The short human instructions and the
+scale are displayed for every image.
 
 This evaluates estimated potential; it neither applies corrections nor validates an
 automated correction pipeline.
@@ -106,10 +100,13 @@ session; `q` quits. Running the command again resumes unlabelled images. `--revi
 revisits all annotations. `--no-viewer` allows input without opening Preview.
 Corrections retain a history with the annotator's name and timestamp.
 
-The convention version and exact instructions are stored with labels and their history.
-Labels recorded before this convention was introduced remain unspecified; running
-`annotate` revisits them under the current instructions without automatically changing
-their values. They are retained in history when the annotator replaces them.
+The semantic target ID and exact human instructions displayed are stored with labels
+and their history. Editorial changes to the instructions retain the same target ID;
+existing labels and their original instructions remain untouched and do not require
+reannotation. A genuinely different judgement target requires a different ID.
+Labels with a different or unspecified target are offered for explicit review by
+`annotate`; opening the workflow does not overwrite them. An explicit correction or
+review records the newly displayed instructions while retaining the previous history.
 
 Labels measure **agreement with the annotator**, not a universal truth about good
 family photos. They remain independent of model outputs.
@@ -121,11 +118,19 @@ The model returns `album_score` (an integer from 0 to 100, higher means a strong
 candidate) and a short explanation in `reason`. It receives only the prompt and proxy
 pixels, without datetime, GPS, filename or source path.
 
-The default prompt asks for assumed corrections, remaining flaws and uncertainty in
-`reason`. Every new run's effective prompt includes the shared correction-potential
-instructions, including runs using custom prompts. The exact text sent is saved.
-Custom prompts must preserve this convention, so their scores can be compared with
-the human labels.
+The built-in default prompt explicitly declares `standard_non_generative_v1` as its
+target. It asks for a short justification in `reason`, with assumed corrections or
+uncertainty when relevant. Prompts are experimental configurations, independent of
+human instruction wording: the exact supplied text is sent and saved without a prefix.
+
+A custom `--prompt` has an **unspecified target by default**. Its operational metrics
+remain available, but agreement metrics against human labels are excluded. To declare
+that a custom prompt uses the current rubric, add
+`--judgement-target standard_non_generative_v1`. This is an explicit protocol
+declaration, not a semantic equivalence inferred from the prompt text. Even a file
+containing the exact built-in prompt remains unspecified without this option.
+Use a different target ID for a genuinely different judgement task.
+`--judgement-target` requires `--prompt`; the built-in prompt's target is fixed.
 
 Prepare an experiment without a key or paid requests:
 
@@ -148,7 +153,9 @@ uv run photocurate run baseline --model provider/model
 
 The exact configuration (model, endpoint, prompt, schema, score field, proxy size,
 settings, concurrency, timeout and declared privacy policy) and run membership are
-frozen in SQLite, along with the judgement convention version and exact instructions.
+frozen in SQLite, along with the independently declared semantic judgement target ID.
+Existing runs keep their saved prompts and target metadata, including pending runs;
+changing the default affects only newly created runs. No database migration is needed.
 The raw response, output, tokens, provider usage, cost, latency and
 errors are recorded per image. Generation IDs and the actual provider route are retained
 when included in the provider response. Credentials are not stored.
@@ -161,7 +168,8 @@ Options allow comparisons with other configurations:
 
 ```sh
 uv run photocurate run baseline --model provider/model \
-  --prompt prompt.txt --schema schema.json --score-field ranking.value \
+  --prompt prompt.txt --judgement-target standard_non_generative_v1 \
+  --schema schema.json --score-field ranking.value \
   --proxy-size 768 --max-output-tokens 1024 --concurrency 2
 ```
 
@@ -240,10 +248,14 @@ The integration follows the official
 Reports use current labels at creation time, including corrections, and export the
 exact labels to preserve that interpretation. No numeric GO/NO-GO threshold is invented.
 
-Agreement metrics exclude labels whose judgement convention differs from the run's.
-Reports display this coverage gap and flag comparisons between runs with different
-conventions. Earlier runs keep their saved prompts and their original, unspecified
-convention; they are not reinterpreted as correction-potential experiments.
+Agreement metrics require the same explicitly recorded semantic target ID on both
+the label and the run. Exact instruction strings do not determine compatibility:
+prompt experiments and editorial simplifications can use the same frozen human labels.
+The existing `convention_json` and run `judgement_convention` JSON fields retain this
+ID and provenance; earlier snapshots containing instruction strings remain valid.
+Different or unspecified targets are excluded, including when both targets are
+unspecified. Reports display the coverage gap and flag comparisons with different or
+unspecified targets. No missing target is inferred from saved prompt or instruction text.
 
 ## Local state and development
 

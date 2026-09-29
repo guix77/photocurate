@@ -1,11 +1,12 @@
 """Terminal labels with images opened in Preview without activating the app."""
 
+import json
 import subprocess
 import sys
 
-from .convention import HUMAN_INSTRUCTIONS, JUDGEMENT_CONVENTION
+from .convention import HUMAN_INSTRUCTIONS, JUDGEMENT_CONVENTION, matching_targets
 from .media import ensure_proxy
-from .store import Store, dumps
+from .store import Store
 
 SCALE = """0 = à jeter
 1 = bof / seulement si utile au contexte
@@ -30,11 +31,16 @@ def annotate(
     evaluation = store.get_set(name)
     members = store.members(evaluation["id"])
     labels = {row["position"]: row["label"] for row in members}
-    current_convention = dumps(JUDGEMENT_CONVENTION)
-    matching = {row["position"]: row["convention_json"] == current_convention for row in members}
+    matching = {
+        row["position"]: matching_targets(
+            json.loads(row["convention_json"]) if row["convention_json"] else None,
+            JUDGEMENT_CONVENTION,
+        )
+        for row in members
+    }
     outdated = sum(row["label"] is not None and not matching[row["position"]] for row in members)
     if outdated:
-        output(f"Convention mise à jour : {outdated} annotations à revoir.")
+        output(f"Cible de jugement différente ou non spécifiée : {outdated} annotations à revoir.")
     queue = (
         list(range(len(members)))
         if review
