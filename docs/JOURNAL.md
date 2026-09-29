@@ -72,3 +72,86 @@ Next step: run GPT-6 Luna again on the same frozen 100-photo evaluation set usin
 - Run 9, GLM 5.3 Flash: interrupted after four stored responses, including two `finish_reason='length'` failures under default OpenRouter routing. No full-holdout quality conclusion is drawn for GLM.
 - Retain GPT-6 Luna for the next isolated-photo stage. Only three holdout labels are `3`, making their recall unstable. These results validate a useful isolated-photo signal, not same-moment/burst selection or final album quality.
 - Added the [holdout v1 report](experiments/2026-09-29-isolated-photo-holdout-v1.md). The baseline v1 historical report, code and existing evaluation state remain unchanged; documenting this milestone launched no new VLM call.
+
+## 2026-09-29 — Paired same-moment selection experiment prepared
+
+- Defined the next question: agreement with a human's choice of one representative,
+  and the incremental value of joint multi-image Luna selection versus the validated
+  isolated Luna scoring baseline, on exactly the same groups.
+- Added the file-backed `moments prepare / annotate / run / report` workflow. It reads
+  existing SQLite state in read-only mode, without migration or changes to old experiments.
+- Prepared a seed-42 pool of 98 candidate days from complete 2–6-image temporal groups,
+  excluding prior-set media and known days. Quotas: five accepted pilot groups and 40
+  accepted test groups, with unused candidates replacing visual-coherence exclusions.
+- Added a loopback gallery with preserved image framing, enlargement, preferred/equivalent
+  choices, history, corrections and resumption. Human annotations precede both model methods;
+  the gallery contains no model execution route or model outputs.
+- Model runs freeze human labels, checksums, configuration, schemas and image/alias orders.
+  Reports compare paired choices, uncertainty, simple references, costs and stability.
+- Added the [selection protocol](experiments/2026-09-29-moment-selection-protocol-v1.md).
+- Validation: 75 tests passed, including simulated paired evaluation, resume, input/schema
+  preservation and the real local gallery HTTP workflow; Ruff and formatting checks passed.
+- Opened the real pilot gallery without entering human choices. No paid VLM call was made.
+  Existing SQLite counts remain 4,851 media, 200 labels, 308 label-history entries, nine runs
+  and 727 results. Human annotation and empirical paired results are pending.
+
+## 2026-09-29 — Human scope exclusion in the moment gallery
+
+- Added “Groupe hors sujet” as a separate exclusion reason for moments outside the
+  family-album scope. These groups stay in history, are counted separately in reports
+  and are replaced from the reserve without consuming an accepted-group quota.
+- Clarified the annotation instructions and protocol: this human scope filter precedes
+  evaluation and does not test the model’s ability to reject irrelevant moments.
+- Following the annotator’s explicit description, reclassified pilot group g001 (work
+  presentation screens) from incoherent to out of scope, retaining the original history
+  and all other choices. Updated the current instructions prospectively.
+- Validation: all 11 moment tests passed, covering each exclusion reason, replacement,
+  quota accounting, run filtering and report counts; Ruff and formatting checks passed.
+  No model run or paid call was launched.
+
+## 2026-09-29 — Moment annotations completed; external execution pending
+
+- The annotator completed five pilot selections, 40 test selections and ten second-pass
+  annotations. Nine repeated choices agree with an acceptable first-pass alternative;
+  eight retain the exact preferred image. The remaining group, g030, was reclassified
+  out of scope during the repeat; its cohort treatment awaits clarification.
+- Prepared and froze the pilot inputs (five groups, 16 proxies) without external calls.
+  The test remains unfrozen. A private execution review records input counts, human
+  repeat consistency, both methods and the OpenRouter request destination.
+- Automatic approval review rejected the external execution because explicit permission
+  to transmit the photos through OpenRouter was missing. Requested that permission;
+  no model request or paid call occurred.
+
+## 2026-09-29 — Paired same-moment selection results and next diagnostic
+
+- The annotator executed both frozen phases manually through `uv run photocurate moments`.
+  The pilot has five groups (16 images): isolated Luna agreement 4/5, joint Luna 3/5,
+  with no request errors. This small pilot is not used to establish superiority.
+- On the 40-group test (116 images), isolated scoring selects an acceptable image in
+  23/40 groups (57.5%), versus 27/40 (67.5%) for joint multi-image selection. Strict
+  preferred-image agreement is 50.0% versus 62.5%. Paired counts: both correct 18,
+  joint only 9, isolated only 5, both wrong 8.
+- The observed gain is +10 percentage points, with group-bootstrap 95% interval
+  [-7.5, +27.5] points and exact McNemar p=0.424. This is a favorable signal, not
+  demonstrated superiority. Unique-human-choice groups show the same direction:
+  16/31 acceptable isolated selections versus 19/31 joint selections.
+- Test operations: 116 isolated requests, three errors, $0.000408 per group and
+  median serial group latency 16.6 seconds; 40 joint requests, no errors,
+  $0.000214 per group and median latency 5.0 seconds. These compare execution from
+  scratch; already available isolated scores would have a different marginal cost.
+  Ten additional order-check requests cost $0.002294 and include one invalid response.
+- Nine human second-pass choices remain acceptable under the first-pass annotations
+  (eight retain the exact preferred image). g030 was marked out of scope during the
+  second pass but remains in the frozen 40-group test; retain the primary cohort and
+  show an explicitly labelled sensitivity analysis excluding it.
+- Reversed-order joint checks retain the exact image in 5/9 valid responses. This
+  mixes order sensitivity and model variability; changing to another human-acceptable
+  alternative must be distinguished from changing to an unacceptable image.
+- Decision: retain the multi-image method as a candidate, keep prompts and the primary
+  test frozen, and inspect stored responses before increasing sample size. First
+  quantify acceptable-choice stability, paired agreement without technical-error groups,
+  and the g030 sensitivity. If uncertainty remains, specify a small repeat experiment
+  on the same ten preselected control groups, comparing repeated identical and reversed
+  orders. The user retains execution of any new paid model requests.
+- Validation before commit: all 77 tests passed; Ruff, formatting and whitespace checks
+  passed. Private photos, annotations, frozen runs and provider responses remain Git-ignored.

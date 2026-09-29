@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PhotoCurate · Choisir une photo</title>
+  <style>
+    :root { color-scheme:light; --ink:#20352f; --muted:#69756e; --accent:#286c55;
+      --line:#d9ded6; --paper:#f5f5ef; --white:#fff; }
+    * { box-sizing:border-box; } body { margin:0; background:var(--paper); color:var(--ink);
+      font:15px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    header { background:var(--ink); color:white; padding:20px 32px; display:flex;
+      align-items:center; justify-content:space-between; gap:16px; }
+    .brand { font-size:23px; font-weight:650; letter-spacing:-.8px; }
+    .brand span { color:#adcab3; font-weight:400; } header small { color:#d2ddd4; }
+    main { max-width:1550px; margin:auto; padding:28px 32px 110px; }
+    .top { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+    h1 { margin:0 0 5px; font-size:28px; letter-spacing:-.7px; } p { margin:6px 0; }
+    .muted { color:var(--muted); } .instructions { max-width:1100px; font-size:14px; }
+    .progress { display:flex; align-items:center; gap:12px; margin:14px 0 22px; }
+    progress { width:200px; height:8px; accent-color:var(--accent); }
+    .grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; }
+    .card { border:2px solid transparent; background:var(--white); border-radius:12px;
+      overflow:hidden; box-shadow:0 2px 10px #23382d0b; }
+    .card.preferred { border-color:var(--accent); } .card.alternative { border-color:#b18a3a; }
+    .image-button { width:100%; height:310px; border:0; border-radius:0; background:#e9ece5;
+      display:flex; align-items:center; justify-content:center; padding:10px; cursor:zoom-in; }
+    .image-button img { max-width:100%; max-height:100%; object-fit:contain; }
+    .card-body { padding:14px; } .photo-heading { display:flex; justify-content:space-between;
+      align-items:center; margin-bottom:12px; } .photo-heading strong { font-size:20px; }
+    .badge { color:var(--accent); font-size:12px; font-weight:650; }
+    .alternative .badge { color:#8d6a25; } .choices { display:flex; gap:8px; }
+    button,select { font:inherit; border:1px solid var(--line); background:white; color:var(--ink);
+      border-radius:7px; padding:9px 14px; cursor:pointer; }
+    button:hover:not(:disabled) { border-color:var(--accent); background:#edf3ed; }
+    button:focus-visible,select:focus-visible { outline:3px solid #8fae88; outline-offset:2px; }
+    button:disabled { opacity:.45; cursor:default; } .primary { background:var(--accent);
+      color:white; border-color:var(--accent); font-weight:600; }
+    .primary:hover:not(:disabled) { background:#205840; color:white; }
+    .choices button { flex:1; padding:8px 5px; font-size:13px; }
+    .choices button[aria-pressed=true] { background:#e4efe5; border-color:var(--accent); }
+    .footer { position:fixed; bottom:0; left:0; right:0; background:#fffffff5;
+      border-top:1px solid var(--line); padding:15px 32px; display:flex; align-items:center;
+      justify-content:space-between; gap:12px; backdrop-filter:blur(10px); }
+    .navigation,.exclude { display:flex; gap:8px; align-items:center; }
+    .note { padding:10px 14px; margin:14px 0; border-radius:7px; background:#f0e9d5; font-size:13px; }
+    #error { background:#fae9e5; color:#7c3023; } [hidden] { display:none !important; }
+    .complete { border:1px solid var(--line); padding:26px; border-radius:12px; background:white; }
+    dialog { padding:12px; border:0; border-radius:12px; max-width:95vw; max-height:95vh;
+      background:#f5f5ef; } dialog::backdrop { background:#16241de0; }
+    dialog img { display:block; max-width:88vw; max-height:78vh; object-fit:contain; margin:auto; }
+    .zoom-footer { display:flex; justify-content:space-between; gap:16px; align-items:center;
+      padding-top:10px; } .zoom-footer small { color:var(--muted); }
+    @media(min-width:1350px) { .image-button { height:365px; } }
+    @media(max-width:950px) { .grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .footer { flex-wrap:wrap; } main { padding-bottom:160px; } }
+    @media(max-width:600px) { header,main { padding-left:16px; padding-right:16px; }
+      .top { align-items:flex-start; } h1 { font-size:23px; } .grid { grid-template-columns:1fr; }
+      .footer { padding:12px 16px; } .exclude { flex-wrap:wrap; } .image-button { height:320px; }
+      header small { display:none; } }
+  </style>
+</head>
+<body>
+  <header><div class="brand">Photo<span>Curate</span></div><small>Une représentante par moment</small></header>
+  <main>
+    <div class="top"><div><h1 id="heading">Choisir la meilleure photo</h1>
+      <p class="muted" id="subtitle">Chargement des photos…</p></div>
+      <label>Étape <select id="phase"><option value="pilot">Pilote</option>
+        <option value="test">Test</option><option value="retest">Second passage</option></select></label></div>
+    <p class="instructions" id="instructions"></p>
+    <div class="progress"><progress id="progress" max="5" value="0"></progress><span id="count"></span></div>
+    <div class="note" id="warning" hidden>Les coordonnées GPS divergent. Confirme visuellement que les photos montrent le même moment.</div>
+    <div class="note" id="error" role="alert" hidden></div>
+    <div class="grid" id="grid"></div>
+    <div class="complete" id="complete" hidden><h2>Choix enregistrés</h2><p id="completion-text"></p>
+      <button id="next-phase" class="primary" hidden>Passer au test</button></div>
+  </main>
+  <div class="footer">
+    <div class="exclude"><button id="out_of_scope" title="Ce moment ne relève pas de l’album familial">Groupe hors sujet</button>
+      <button id="heterogeneous">Groupe incohérent</button>
+      <button id="unjudgeable">Détails illisibles</button><span class="muted" id="saved" aria-live="polite"></span></div>
+    <div class="navigation"><button id="previous">← Précédent</button><button id="next">Suivant →</button>
+      <button id="save" class="primary" disabled>Valider et suivant</button></div>
+  </div>
+  <dialog id="zoom"><img id="zoom-image" alt="Photo agrandie"><div class="zoom-footer">
+    <small>Le même proxy est utilisé pour ton choix et pour Luna.</small><button id="close-zoom">Fermer · Échap</button></div></dialog>
+  <script>
+    const prefix = '__PREFIX__';
+    const el = id => document.getElementById(id);
+    let phase = new URLSearchParams(location.search).get('phase') || 'pilot';
+    let state, index = 0, preferred = null, alternatives = new Set(), busy = false;
+    const current = () => state?.groups[index];
+    async function api(path, body) {
+      const response = await fetch(prefix + path, body ? {method:'POST',
+        headers:{'Content-Type':'application/json'},body:JSON.stringify(body)} : {});
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Enregistrement impossible');
+      return data;
+    }
+    function error(message) { el('error').textContent = message; el('error').hidden = !message; }
+    function restoreChoice() {
+      const annotation = current()?.annotation;
+      preferred = annotation?.preferred ?? null;
+      alternatives = new Set(annotation?.alternatives || []);
+    }
+    function button(text, action) {
+      const node = document.createElement('button'); node.textContent = text;
+      node.onclick = action; return node;
+    }
+    function render() {
+      el('phase').value = phase;
+      el('phase').querySelector('[value=test]').disabled = !state.pilot_complete;
+      el('phase').querySelector('[value=retest]').disabled = !state.test_complete;
+      el('instructions').textContent = state.instructions;
+      el('progress').max = state.quota; el('progress').value = state.done;
+      el('count').textContent = `${state.done} / ${state.quota} choix enregistrés` +
+        (state.excluded ? ` · ${state.excluded} groupe(s) signalé(s)` : '');
+      const group = current(); const done = !group;
+      el('grid').replaceChildren(); el('complete').hidden = !done;
+      el('warning').hidden = !group?.gps_warning;
+      el('subtitle').textContent = done ? 'Tu peux revenir sur tes choix avec Précédent.' :
+        `${phase === 'pilot' ? 'Pilote' : phase === 'test' ? 'Test' : 'Second passage'} · Groupe ${index + 1} · ${group.photos.length} photos`;
+      el('previous').disabled = busy || index === 0;
+      el('next').disabled = busy || !group?.annotation;
+      el('save').disabled = busy || !group || preferred === null || state.locked;
+      el('out_of_scope').disabled = busy || !group || state.locked;
+      el('heterogeneous').disabled = busy || !group || state.locked;
+      el('unjudgeable').disabled = busy || !group || state.locked;
+      el('phase').disabled = busy;
+      el('saved').textContent = state.locked ? 'Annotations figées' :
+        group?.annotation ? 'Choix déjà enregistré' : '';
+      el('completion-text').textContent = phase === 'pilot' ?
+        'Le pilote est annoté. Les groupes de test sont disponibles ; aucun appel Luna n’est lancé par cette page.' :
+        phase === 'test' ? 'Les annotations du test sont terminées. Le second passage est disponible avant les évaluations Luna.' :
+        'Le second passage est terminé. Les annotations sont prêtes pour la comparaison des deux méthodes.';
+      el('next-phase').hidden = phase === 'retest';
+      el('next-phase').textContent = phase === 'pilot' ? 'Passer au test' : 'Faire le second passage';
+      if (!group) return;
+      for (const photo of group.photos) {
+        const chosen = preferred === photo.version_id, equivalent = alternatives.has(photo.version_id);
+        const card = document.createElement('article');
+        card.className = 'card' + (chosen ? ' preferred' : equivalent ? ' alternative' : '');
+        const imageButton = button('', () => {
+          el('zoom-image').src = `${prefix}/image/${photo.version_id}`;
+          el('zoom-image').alt = `Photo ${photo.label} agrandie`; el('zoom').showModal();
+        });
+        imageButton.className = 'image-button'; imageButton.setAttribute('aria-label', `Agrandir la photo ${photo.label}`);
+        const img = document.createElement('img'); img.src = `${prefix}/image/${photo.version_id}`;
+        img.alt = `Photo ${photo.label}`; img.onerror = () => error('Une image ne peut pas être chargée. Ne valide pas ce groupe.');
+        imageButton.append(img); card.append(imageButton);
+        const body = document.createElement('div'); body.className = 'card-body';
+        const heading = document.createElement('div'); heading.className = 'photo-heading';
+        const title = document.createElement('strong'); title.textContent = photo.label;
+        const badge = document.createElement('span'); badge.className = 'badge';
+        badge.textContent = chosen ? 'TA PRÉFÉRÉE' : equivalent ? 'AUSSI ACCEPTABLE' : 'Clique pour agrandir';
+        heading.append(title, badge); body.append(heading);
+        const choices = document.createElement('div'); choices.className = 'choices';
+        const choose = button(chosen ? '✓ Ma préférée' : 'Ma préférée', () => {
+          preferred = photo.version_id; alternatives.delete(preferred); render();
+        });
+        choose.setAttribute('aria-pressed', chosen); choose.disabled = busy || state.locked;
+        const alternative = button(equivalent ? '✓ Équivalente' : 'Équivalente', () => {
+          if (equivalent) alternatives.delete(photo.version_id); else alternatives.add(photo.version_id);
+          render();
+        });
+        alternative.setAttribute('aria-pressed', equivalent);
+        alternative.disabled = busy || state.locked || chosen || preferred === null;
+        choices.append(choose, alternative); body.append(choices); card.append(body); el('grid').append(card);
+      }
+    }
+    async function load(newPhase) {
+      error('');
+      try {
+        const data = await api(`/api/state?phase=${newPhase}`);
+        phase = newPhase; state = data;
+        const next = state.groups.findIndex(group => !group.annotation);
+        index = next < 0 ? state.groups.length : next;
+        history.replaceState(null,'',`${prefix}/?phase=${phase}`);
+        restoreChoice(); render();
+      } catch (err) { error(err.message); if (state) render(); }
+    }
+    async function save(status) {
+      if (busy || !current()) return;
+      const groupId = current().id; busy = true; error(''); render();
+      try {
+        state = await api('/api/annotation', {phase, group_id:groupId, status,
+          preferred:status === 'selected' ? preferred : null,
+          alternatives:status === 'selected' ? [...alternatives] : []});
+        index = state.groups.findIndex(group => group.id === groupId) + 1;
+        restoreChoice(); window.scrollTo({top:0,behavior:'smooth'});
+      } catch (err) { error(err.message); }
+      finally { busy = false; render(); }
+    }
+    el('save').onclick = () => save('selected');
+    el('out_of_scope').onclick = () => save('out_of_scope');
+    el('heterogeneous').onclick = () => save('heterogeneous');
+    el('unjudgeable').onclick = () => save('unjudgeable');
+    el('previous').onclick = () => { index = Math.max(0,index - 1); restoreChoice(); render(); };
+    el('next').onclick = () => { index++; restoreChoice(); render(); };
+    el('phase').onchange = event => load(event.target.value);
+    el('next-phase').onclick = () => load(phase === 'pilot' ? 'test' : 'retest');
+    el('close-zoom').onclick = () => el('zoom').close();
+    load(phase);
+  </script>
+</body>
+</html>

@@ -112,20 +112,18 @@ def response_format(schema: dict) -> dict:
     }
 
 
-def make_request(config: dict, proxy: Path) -> dict:
+def image_content(proxy: Path) -> dict:
     encoded = base64.b64encode(proxy.read_bytes()).decode("ascii")
+    return {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded}"}}
+
+
+def request_body(config: dict, content: list[dict]) -> dict:
     body = {
         "model": config["model"],
         "messages": [
             {
                 "role": "user",
-                "content": [
-                    {"type": "text", "text": config["prompt"]},
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": f"data:image/jpeg;base64,{encoded}"},
-                    },
-                ],
+                "content": content,
             }
         ],
         "response_format": response_format(config["schema"]),
@@ -137,6 +135,17 @@ def make_request(config: dict, proxy: Path) -> dict:
     if config["temperature"] is not None:
         body["temperature"] = config["temperature"]
     return body
+
+
+def make_request(config: dict, proxy: Path) -> dict:
+    return request_body(config, [{"type": "text", "text": config["prompt"]}, image_content(proxy)])
+
+
+def make_group_request(config: dict, images: list[tuple[str, Path]]) -> dict:
+    content = [{"type": "text", "text": config["prompt"]}]
+    for identifier, proxy in images:
+        content.extend([{"type": "text", "text": f"Photo {identifier}"}, image_content(proxy)])
+    return request_body(config, content)
 
 
 def accounting(body: dict, config: dict) -> dict:
@@ -178,6 +187,16 @@ def accounting(body: dict, config: dict) -> dict:
 
 
 async def evaluate_image(client: httpx.AsyncClient, key: str, config: dict, proxy: Path) -> dict:
+    return await evaluate_response(client, key, config, lambda: make_request(config, proxy))
+
+
+async def evaluate_group(
+    client: httpx.AsyncClient, key: str, config: dict, images: list[tuple[str, Path]]
+) -> dict:
+    return await evaluate_response(client, key, config, lambda: make_group_request(config, images))
+
+
+async def evaluate_response(client: httpx.AsyncClient, key: str, config: dict, make_body) -> dict:
     started = time.perf_counter()
     result = {
         "status": "provider_error",
@@ -193,7 +212,7 @@ async def evaluate_image(client: httpx.AsyncClient, key: str, config: dict, prox
         "abort_run": False,
     }
     try:
-        body = make_request(config, proxy)
+        body = make_body()
         response = await client.post(
             ENDPOINT,
             headers={"Authorization": f"Bearer {key}"},
@@ -230,12 +249,14 @@ async def evaluate_image(client: httpx.AsyncClient, key: str, config: dict, prox
         output = parse_json(content)
         result["output_json"] = dumps(output)
         Draft202012Validator(config["schema"]).validate(output)
-        score = output
-        for component in config["score_field"].split("."):
-            score = score[component]
-        if not numeric(score):
-            raise ValueError("Ranking field must be a finite number")
-        result.update(status="ok", score=float(score))
+        if config["score_field"] is not None:
+            score = output
+            for component in config["score_field"].split("."):
+                score = score[component]
+            if not numeric(score):
+                raise ValueError("Ranking field must be a finite number")
+            result["score"] = float(score)
+        result["status"] = "ok"
     except Exception as exc:
         result["error"] = f"{type(exc).__name__}: {exc}"
     finally:

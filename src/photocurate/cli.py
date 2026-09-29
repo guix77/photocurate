@@ -30,7 +30,9 @@ def positive(value: str) -> int:
 
 
 def parser() -> argparse.ArgumentParser:
-    cli = argparse.ArgumentParser(description="Evaluate VLM judgement of isolated personal photos")
+    cli = argparse.ArgumentParser(
+        description="Evaluate VLM photo judgement and same-moment choices"
+    )
     cli.add_argument(
         "--state-dir",
         type=Path,
@@ -112,7 +114,72 @@ def parser() -> argparse.ArgumentParser:
     report.add_argument("--top-k", type=positive, nargs="+", default=[10, 20])
     report.add_argument("--output-dir", type=Path)
     commands.add_parser("status", help="local corpus and experiment counts")
+
+    moments = commands.add_parser("moments", help="paired same-moment selection experiment")
+    moment_commands = moments.add_subparsers(dest="moment_command", required=True)
+    prepare = moment_commands.add_parser("prepare", help="prepare candidates from read-only SQLite")
+    prepare.add_argument("name")
+    prepare.add_argument("--source", type=Path, required=True)
+    prepare.add_argument("--baseline-run", type=positive, required=True)
+    prepare.add_argument("--pilot-size", type=positive, default=5)
+    prepare.add_argument("--test-size", type=positive, default=40)
+    prepare.add_argument("--seed", type=int, default=42)
+    prepare.add_argument("--gap-seconds", type=positive, default=30)
+    prepare.add_argument("--max-span-seconds", type=positive, default=120)
+    view = moment_commands.add_parser("annotate", help="serve a local annotation gallery")
+    view.add_argument("name")
+    view.add_argument("--annotator", required=True)
+    view.add_argument("--phase", choices=("pilot", "test", "retest"), default="pilot")
+    view.add_argument("--port", type=int, default=0)
+    evaluate = moment_commands.add_parser("run", help="freeze labels and compare both Luna methods")
+    evaluate.add_argument("name")
+    evaluate.add_argument("--phase", choices=("pilot", "test"), default="pilot")
+    evaluate.add_argument(
+        "--prompt", type=Path, help="joint prompt; frozen before the first request"
+    )
+    evaluate.add_argument("--prepare-only", action="store_true")
+    comparison = moment_commands.add_parser("report", help="write paired agreement and operations")
+    comparison.add_argument("name")
+    comparison.add_argument("--phase", choices=("pilot", "test"), default="test")
     return cli
+
+
+def dispatch_moments(args):
+    from . import moments
+
+    directory = moments.experiment_dir(args.state_dir, args.name)
+    if args.moment_command == "prepare":
+        return moments.prepare(
+            args.state_dir,
+            args.name,
+            args.source,
+            args.baseline_run,
+            args.pilot_size,
+            args.test_size,
+            args.seed,
+            args.gap_seconds,
+            args.max_span_seconds,
+        )
+    if args.moment_command == "annotate":
+        from .moment_viewer import serve
+
+        serve(directory, args.annotator, args.phase, args.port)
+        return {"experiment_dir": str(directory)}
+    if args.moment_command == "report":
+        return moments.paired_report(directory, args.phase)
+    prompt = args.prompt.read_text(encoding="utf-8") if args.prompt else None
+    if args.prepare_only:
+        run = moments.prepare_run(directory, args.phase, prompt)
+        return {"phase": args.phase, "groups": len(run["groups"]), "status": "prepared"}
+    load_dotenv(args.env_file, override=False)
+    return asyncio.run(
+        moments.execute(
+            directory,
+            args.phase,
+            os.environ.get("OPENROUTER_API_KEY", "").strip(),
+            prompt,
+        )
+    )
 
 
 def dispatch(args, store: Store):
@@ -216,10 +283,13 @@ def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     store = None
     try:
-        store = Store(args.state_dir)
-        result = dispatch(args, store)
+        if args.command == "moments":
+            result = dispatch_moments(args)
+        else:
+            store = Store(args.state_dir)
+            result = dispatch(args, store)
         print(dumps(result))
-        if args.command in ("run", "resume") and result.get("errors", 0):
+        if args.command in ("run", "resume", "moments") and result.get("errors", 0):
             return 1
         return 0
     except (ValueError, OSError, sqlite3.Error, SchemaError, subprocess.CalledProcessError) as exc:

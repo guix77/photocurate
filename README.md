@@ -4,6 +4,10 @@ A Python proof of concept for measuring agreement between economical VLMs and a 
 annotator on personal photos judged in isolation. The scope is defined in [DESIGN.md](DESIGN.md).
 A v1 GO validates neither comparison within a moment or burst nor the quality of a final album.
 
+The next experiment compares **one representative per moment**, using isolated Luna
+scores versus a joint multi-image choice on the same human-annotated groups. See the
+[same-moment protocol](docs/experiments/2026-09-29-moment-selection-protocol-v1.md).
+
 ## Experiments and development journal
 
 PhotoCurate is developed as an evidence-driven Applied AI experiment, not only as an implementation.
@@ -30,6 +34,76 @@ environment variable takes precedence over `.env`.
 No model is selected by default. Supply an OpenRouter ID for a vision model that supports
 structured outputs. The `require_parameters` preference checks routes for technical
 compatibility with the requested parameters; it is not a privacy filter.
+
+## Same-moment selection experiment
+
+This file-backed workflow reads the existing SQLite database without opening a writable
+`Store` or migrating its schema. Originals and previous sets, labels and runs stay intact.
+Prepare a seeded pool of complete 2–6-image temporal groups, using known-timezone EXIF
+dates, gaps of at most 30 seconds and total spans of at most 120 seconds. The pool excludes
+media and known dates from all existing evaluation sets, with one candidate per day.
+Oversized/long components are excluded whole; identical proxies are collapsed. GPS
+disagreement is a visual-review warning, not an automatic exclusion.
+
+```sh
+uv run photocurate moments prepare moments-v1 --source "/path/to/my photos" --baseline-run 8
+uv run photocurate moments annotate moments-v1 --annotator guix
+```
+
+Open the displayed loopback URL. The gallery presents the whole group, with neutral
+identifiers, preserved image proportions, enlargement and explicit preferred/equivalent
+choices. Choose **one** representative even if every photo is weak. Equivalent alternatives
+mean keeping one or the other, not keeping both. Groups outside the family-album scope,
+incoherent groups and illegible proxies
+are recorded and replaced from the frozen reserve pool until the phase quota is met.
+Defaults are five accepted pilot groups and 40 accepted test groups, on distinct days.
+Navigation and corrections retain history; restarting the server resumes annotations.
+The gallery never displays model outputs or launches model calls.
+
+Complete the pilot annotations before running either method:
+
+```sh
+uv run photocurate moments run moments-v1 --phase pilot --prepare-only
+uv run photocurate moments run moments-v1 --phase pilot
+uv run photocurate moments report moments-v1 --phase pilot
+```
+
+The isolated baseline uses the exact persisted model, prompt, schema and parameters of
+the supplied completed baseline run, rerun on every new group image. The joint method
+uses all group images in one request and returns exactly one neutral image identifier.
+Both use the same 512 px proxies. Every phase's labels, image checksums, presentation
+orders and exact configurations are frozen before its first model request. A prepared
+run locks annotations; resume the same command to execute only missing requests.
+Errors remain recorded and are not retried or replaced.
+
+After reviewing the pilot, annotate the test through the page's phase selector or:
+
+```sh
+uv run photocurate moments annotate moments-v1 --annotator guix --phase test
+uv run photocurate moments annotate moments-v1 --annotator guix --phase retest
+uv run photocurate moments run moments-v1 --phase test
+uv run photocurate moments report moments-v1 --phase test
+```
+
+The optional blind human second pass covers up to ten test groups, with reversed order
+and new aliases. Do it before preparing/running the test so it is included in the frozen
+run. Test execution also repeats joint selection on those groups with reversed order
+and remapped identifiers. These checks measure stability; they do not isolate order
+effects from model nondeterminism.
+
+An optional `moments run --prompt FILE` changes only the joint prompt before run creation.
+Freeze it after the pilot; do not tune it using test results. Resuming a prepared run
+rejects prompt replacement. Existing prepared prompts and schemas stay unchanged after
+code updates. A change to image resolution requires a new experiment; this first workflow
+uses the already available 512 px proxies.
+
+Artifacts live under `.photocurate/moments/NAME/`: `manifest.json`, append-only
+`annotations.jsonl`, and per-phase `runs/PHASE/{run.json,results.jsonl,report.json,report.md}`.
+Reports include exact/alternative-tolerant agreement, isolated-score ties, paired gains
+and uncertainty, random/chronological references, operational cost/latency, exclusions and
+stability. Errors count as failed selections; pending groups do not yield a final agreement.
+The scope is relative choice of a single representative, not rejection, complementary
+multi-photo selection, automatic grouping quality or a final album.
 
 ## Index and select
 
