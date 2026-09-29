@@ -1,7 +1,7 @@
 # PhotoCurate — Experiment report: isolated-photo holdout v1
 
 **Date:** 2026-09-29  
-**Decision:** retain **GPT-6 Luna** for the next isolated-photo stage.
+**Decision:** retain **GPT-6 Luna** for the next PhotoCurate evaluation stage.
 
 ## 1. From development to independent validation
 
@@ -66,7 +66,7 @@ This is a 100-photo holdout from one corpus and one annotator. It provides evide
 
 ## 5. Decision, scope and evidence retained
 
-**GPT-6 Luna is retained for the next stage on isolated photos.** It supplies a useful ranking signal on unseen, independently annotated images at low observed cost and with reliable execution in this run. No prompt change is proposed from these holdout results.
+**GPT-6 Luna is retained for the next PhotoCurate evaluation stage.** It supplies a useful ranking signal on unseen, independently annotated images at low observed cost and with reliable execution in this run. Human labels `2`/`3` account for 31% of the holdout, while Luna concentrates 70% in its Top-10 and 65% in its Top-20. No prompt change is proposed from these holdout results.
 
 This validates a useful **isolated-photo judgement signal** against the annotator's labels. It does **not yet validate selection among photos of the same moment or burst**, redundancy handling, event-level comparison, or **the quality of a final album**. It also does not verify an actual photo-correction pipeline or personal significance beyond visible content.
 
