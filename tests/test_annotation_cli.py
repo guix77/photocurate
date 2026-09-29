@@ -37,6 +37,7 @@ def test_cli_runtime_paths_prepare_and_report_without_key(tmp_path, corpus, monk
     assert main([*common, "report", "1"]) == 0
     report = json.loads((tmp_path / "state/reports/runs-1.json").read_text())
     assert report["runs"][0]["operations"]["pending"] == 3
+    assert report["runs"][0]["config"]["temperature"] is None
     assert main([*common, "resume", "1"]) == 1
     assert "OPENROUTER_API_KEY is missing" in capsys.readouterr().err
 

@@ -59,6 +59,37 @@ def test_request_contains_pixels_and_fixed_prompt_only(config, tmp_path):
     assert json.loads(result["raw_response"])["provider"] == "Test Provider"
 
 
+@pytest.mark.parametrize("temperature", [None, 0])
+def test_models_without_temperature_can_route_without_weakening_parameter_requirements(
+    config,
+    tmp_path,
+    temperature,
+):
+    config["temperature"] = temperature
+    validate_config(config)
+
+    def handler(request):
+        body = json.loads(request.content)
+        assert body["provider"] == {"require_parameters": True}
+        assert body["response_format"]["type"] == "json_schema"
+        if "temperature" in body:
+            assert body["temperature"] == 0
+            return httpx.Response(
+                404,
+                json={
+                    "error": {
+                        "code": 404,
+                        "message": "No endpoints found that can handle the requested parameters",
+                    }
+                },
+            )
+        return httpx.Response(200, json=completion('{"album_score": 80, "reason": "Fixture"}'))
+
+    result = call(config, tmp_path, handler)
+    assert result["status"] == ("ok" if temperature is None else "provider_error")
+    assert result["abort_run"] == (temperature is not None)
+
+
 @pytest.mark.parametrize(
     "content",
     [

@@ -110,6 +110,18 @@ Do not add embeddings, pHash, clustering, vector search, web UI, external databa
 
 Each additional component must solve an observed limitation in the evaluation results.
 
+### 3.8 Judge realistic correction potential
+
+Human labels and VLM scores judge the photo's album-worthiness **after reasonable, standard, non-generative corrections that could be automated**, rather than strictly as presented. The same convention applies to both.
+
+Permitted corrections include cropping, straightening, moderate exposure and colour adjustments, red-eye correction, mild denoising and sharpening. Do not penalize minor flaws when these corrections could reasonably address them. A crop must preserve a useful composition and sufficient visible detail for an album.
+
+Judge only potential supported by visible content. Do not imagine content outside the frame, reconstruct missing content, or assume recovery of severely degraded detail. Cut-off subjects, poor expressions, substantial blur, and detail lost in severely underexposed or overexposed areas remain penalties when the permitted corrections cannot address them.
+
+Be conservative when recoverability is unclear. Reduced proxies limit technical judgement; they do not justify assuming that unseen detail exists in the original.
+
+The v1 measures **estimated correction potential**. It does not apply these corrections or demonstrate that an automated correction pipeline can realize that potential.
+
 ---
 
 ## 4. Implementation constraints
@@ -174,6 +186,8 @@ A human judgement attached to an image in an evaluation set.
 
 These labels are the reference for measuring **agreement with the annotator**, not a universal ground truth about what makes a good family photo. Evaluation conclusions describe how well the model matches that annotator's judgement of photos in isolation.
 
+The judgement uses the correction-potential convention in section 3.8. Persist the convention's version and exact instructions with each label and its correction history. Earlier labels must not silently acquire a new meaning when the convention changes.
+
 The v1 scale is:
 
 ```text
@@ -200,6 +214,7 @@ A run must preserve enough information to understand exactly what was tested, in
 - image/proxy size;
 - exact prompt or prompt version/content;
 - exact structured-output contract/schema;
+- judgement convention version and exact instructions;
 - creation time.
 
 The exact representation is an implementation choice.
@@ -226,7 +241,7 @@ No product UI is required in v1.
 
 A lightweight local annotation workflow is sufficient. On macOS, the preferred interaction is to display the current image in Preview without stealing focus from the terminal, allowing the reviewer to keep typing labels in the terminal.
 
-For every image, the annotation prompt must visibly repeat:
+For every image, the annotation prompt must visibly repeat the correction-potential instructions in section 3.8 and the label scale:
 
 ```text
 0 = à jeter
@@ -251,10 +266,11 @@ However, every candidate prompt/schema must satisfy the following functional con
 - input is the image proxy;
 - v1 evaluation uses **image only** as model context;
 - collected datetime and geolocation are intentionally withheld from the model in this phase so the experiment isolates visual judgement;
+- judgement follows the same realistic, non-generative correction-potential convention as human labels (section 3.8), including its limits; custom prompts must preserve this convention;
 - output is structured and machine-validatable;
 - output contains at least one value that allows photos to be ranked by album-worthiness;
 - runs using different prompts or schemas remain comparable through the human labels;
-- the exact prompt and exact schema are persisted with each run.
+- the exact prompt, exact schema and judgement convention are persisted with each run.
 
 The project may later evaluate whether explicit intermediate attributes improve judgement, but no such attribute set is prescribed here.
 
@@ -287,6 +303,8 @@ Credentials must not be stored in the project database or committed to source co
 The core evaluation compares model ordering against human judgement on the frozen evaluation set.
 
 Quality metrics measure agreement with the annotator. Approximately 100 images are sufficient to start measuring, but close results or too few labels in classes `0` or `3` require enlarging the same set as described above and comparing models on its expanded, fixed membership before concluding.
+
+Agreement metrics must use labels and runs with matching judgement conventions. Report incompatible or unspecified earlier labels explicitly rather than treating them as correction-potential labels. Annotation can revisit those images under the new instructions while retaining the previous labels in history.
 
 Primary quality views should include:
 
@@ -333,6 +351,8 @@ Do not invent a numeric success threshold before observing the first results.
 The purpose of the initial evaluation is to establish a baseline and compare several economically plausible model/configuration choices on the same human-labelled sample.
 
 A v1 GO validates only that the model can judge an isolated photo with useful agreement with the annotator. It does **not** validate the harder task of comparing photos within the same moment or burst, or the quality of a final album. Those require separate evaluations in a later phase.
+
+Under the correction-potential convention, a GO concerns estimated potential and does not validate an actual automated correction pipeline.
 
 The project continues only if the observed combination of:
 

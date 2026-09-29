@@ -6,6 +6,7 @@ import json
 import httpx
 
 from . import __version__
+from .convention import JUDGEMENT_CONVENTION, MODEL_INSTRUCTIONS
 from .media import ensure_proxy
 from .provider import ENDPOINT, evaluate_image, response_format, validate_config
 from .store import Store, dumps, now
@@ -13,6 +14,9 @@ from .store import Store, dumps, now
 
 def create_run(store: Store, name: str, config: dict) -> int:
     validate_config(config)
+    config = dict(config)
+    if MODEL_INSTRUCTIONS not in config["prompt"]:
+        config["prompt"] = MODEL_INSTRUCTIONS + "\n\n" + config["prompt"]
     evaluation = store.get_set(name)
     members = store.members(evaluation["id"])
     proxies = [ensure_proxy(store, row["version_id"], config["proxy_size"]) for row in members]
@@ -25,6 +29,7 @@ def create_run(store: Store, name: str, config: dict) -> int:
         "privacy_policy": "ZDR and no training enforced by OpenRouter account/key",
         "application_version": __version__,
         "model_context": "image_only",
+        "judgement_convention": JUDGEMENT_CONVENTION,
         "stream": False,
     }
     with store.db:
@@ -68,10 +73,11 @@ async def execute_run(store: Store, run_id: int, key: str, progress=print, trans
         "SELECT COUNT(*) FROM run_members WHERE run_id = ?", (run_id,)
     ).fetchone()[0]
     completed = total - len(pending)
+    abort = asyncio.Event()
 
     async def worker(client):
         nonlocal completed
-        while not queue.empty():
+        while not queue.empty() and not abort.is_set():
             member = queue.get_nowait()
             try:
                 # Reuse the exact immutable proxy selected at run creation.
@@ -83,6 +89,8 @@ async def execute_run(store: Store, run_id: int, key: str, progress=print, trans
                     "latency_ms": 0,
                     "error": f"{type(exc).__name__}: {exc}",
                 }
+            if result.get("abort_run"):
+                abort.set()
             columns = [
                 "status",
                 "output_json",
@@ -112,6 +120,13 @@ async def execute_run(store: Store, run_id: int, key: str, progress=print, trans
                 f"Run {run_id}: {completed}/{total} — image {member['position']}: "
                 f"{result['status']}"
             )
+            if result.get("error"):
+                progress(f"  {result['error']}")
+            if result.get("abort_run"):
+                progress(
+                    "Stopped: fix the authentication, credit or routing configuration "
+                    "before starting another experiment."
+                )
 
     try:
         async with httpx.AsyncClient(transport=transport) as client:
@@ -140,10 +155,21 @@ def finalize_run(store: Store, run_id: int) -> dict:
     errors = store.db.execute(
         "SELECT COUNT(*) FROM results WHERE run_id = ? AND status != 'ok'", (run_id,)
     ).fetchone()[0]
-    status = "completed_with_errors" if errors else "completed"
+    recorded = store.db.execute(
+        "SELECT COUNT(*) FROM results WHERE run_id = ?",
+        (run_id,),
+    ).fetchone()[0]
+    pending = total - recorded
+    status = "failed" if pending else ("completed_with_errors" if errors else "completed")
     with store.db:
         store.db.execute(
             "UPDATE runs SET status = ?, finished_at = COALESCE(finished_at, ?) WHERE id = ?",
             (status, now(), run_id),
         )
-    return {"run_id": run_id, "status": status, "images": total, "errors": errors}
+    return {
+        "run_id": run_id,
+        "status": status,
+        "images": total,
+        "errors": errors,
+        "pending": pending,
+    }

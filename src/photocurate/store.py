@@ -5,6 +5,8 @@ import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
 
+from .convention import JUDGEMENT_CONVENTION
+
 
 def now() -> str:
     return datetime.now(UTC).isoformat()
@@ -71,6 +73,7 @@ CREATE TABLE IF NOT EXISTS human_labels (
     label TEXT NOT NULL CHECK (label IN ('0', '1', '2', '3', '?')),
     annotator TEXT NOT NULL,
     updated_at TEXT NOT NULL,
+    convention_json TEXT,
     PRIMARY KEY (set_id, position),
     FOREIGN KEY (set_id, position) REFERENCES evaluation_members(set_id, position)
 );
@@ -81,6 +84,7 @@ CREATE TABLE IF NOT EXISTS label_history (
     label TEXT NOT NULL,
     annotator TEXT NOT NULL,
     created_at TEXT NOT NULL,
+    convention_json TEXT,
     FOREIGN KEY (set_id, position) REFERENCES evaluation_members(set_id, position)
 );
 CREATE TABLE IF NOT EXISTS runs (
@@ -128,11 +132,18 @@ class Store:
         self.db.execute("PRAGMA foreign_keys = ON")
         self.db.execute("PRAGMA journal_mode = WAL")
         version = self.db.execute("PRAGMA user_version").fetchone()[0]
-        if version not in (0, 1):
+        if version not in (0, 1, 2):
             self.db.close()
             raise ValueError(f"Unsupported database schema version: {version}")
         self.db.executescript(SCHEMA)
-        self.db.execute("PRAGMA user_version = 1")
+        # Existing labels predate an explicit convention. Keep them unspecified
+        # instead of assigning the new meaning retroactively.
+        with self.db:
+            for table in ("human_labels", "label_history"):
+                columns = {row[1] for row in self.db.execute(f"PRAGMA table_info({table})")}
+                if "convention_json" not in columns:
+                    self.db.execute(f"ALTER TABLE {table} ADD COLUMN convention_json TEXT")
+            self.db.execute("PRAGMA user_version = 2")
         self.db.commit()
 
     def close(self) -> None:
@@ -153,7 +164,7 @@ class Store:
     def members(self, set_id: int) -> list[sqlite3.Row]:
         return self.db.execute(
             """SELECT em.*, m.source_path, v.file_size, v.mtime_ns,
-                      hl.label, hl.annotator
+                      hl.label, hl.annotator, hl.convention_json
                FROM evaluation_members em
                JOIN media m ON m.id = em.media_id
                JOIN media_versions v ON v.id = em.version_id
@@ -168,16 +179,20 @@ class Store:
         if not annotator.strip():
             raise ValueError("An annotator name is required")
         timestamp = now()
+        convention_json = dumps(JUDGEMENT_CONVENTION)
         with self.db:
             self.db.execute(
-                """INSERT INTO human_labels VALUES (?, ?, ?, ?, ?)
+                """INSERT INTO human_labels
+                   (set_id, position, label, annotator, updated_at, convention_json)
+                   VALUES (?, ?, ?, ?, ?, ?)
                    ON CONFLICT(set_id, position) DO UPDATE SET
                    label = excluded.label, annotator = excluded.annotator,
-                   updated_at = excluded.updated_at""",
-                (set_id, position, label, annotator, timestamp),
+                   updated_at = excluded.updated_at, convention_json = excluded.convention_json""",
+                (set_id, position, label, annotator, timestamp, convention_json),
             )
             self.db.execute(
                 """INSERT INTO label_history
-                   (set_id, position, label, annotator, created_at) VALUES (?, ?, ?, ?, ?)""",
-                (set_id, position, label, annotator, timestamp),
+                   (set_id, position, label, annotator, created_at, convention_json)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (set_id, position, label, annotator, timestamp, convention_json),
             )

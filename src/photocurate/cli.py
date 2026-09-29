@@ -77,7 +77,12 @@ def parser() -> argparse.ArgumentParser:
         "--score-field", default="album_score", help="numeric field; dot paths supported"
     )
     run.add_argument("--proxy-size", type=positive, default=512)
-    run.add_argument("--temperature", type=float, default=0)
+    run.add_argument(
+        "--temperature",
+        type=float,
+        default=None,
+        help="optional sampling temperature; omitted by default for compatibility",
+    )
     run.add_argument("--max-output-tokens", type=positive, default=512)
     run.add_argument("--timeout", type=float, default=60)
     run.add_argument("--concurrency", type=positive, default=1)
@@ -195,7 +200,10 @@ def main(argv: list[str] | None = None) -> int:
     store = None
     try:
         store = Store(args.state_dir)
-        print(dumps(dispatch(args, store)))
+        result = dispatch(args, store)
+        print(dumps(result))
+        if args.command in ("run", "resume") and result.get("errors", 0):
+            return 1
         return 0
     except (ValueError, OSError, sqlite3.Error, SchemaError, subprocess.CalledProcessError) as exc:
         print(f"Error: {exc}", file=sys.stderr)

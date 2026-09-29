@@ -4,6 +4,14 @@ A Python proof of concept for measuring agreement between economical VLMs and a 
 annotator on personal photos judged in isolation. The scope is defined in [DESIGN.md](DESIGN.md).
 A v1 GO validates neither comparison within a moment or burst nor the quality of a final album.
 
+## Experiments and development journal
+
+PhotoCurate is developed as an evidence-driven Applied AI experiment, not only as an implementation.
+
+- [Development journal](docs/JOURNAL.md) — chronological record of hypotheses, methodology changes, experiments, findings and decisions.
+
+Generated run artifacts remain in the private local `.photocurate/reports/` state and are not versioned with the source repository.
+
 ## Installation
 
 Python 3.12 or later, managed with `uv`:
@@ -67,6 +75,22 @@ On macOS, Preview displays the current image proxy without taking focus from the
 uv run photocurate annotate baseline --annotator guix
 ```
 
+Both the annotator and the VLM judge **album-worthiness after reasonable, standard,
+non-generative corrections that could be automated**: cropping, straightening, moderate
+exposure and colour adjustments, red-eye correction, mild denoising and sharpening.
+Minor, reasonably correctable flaws should not reduce the score. A crop must preserve
+a useful composition and sufficient visible detail for an album.
+
+Assess only potential supported by visible content. Do not imagine content outside the
+frame, reconstruct missing content, or assume recovery of severely degraded detail.
+Cut-off subjects, poor expressions, substantial blur and detail lost in severely
+underexposed or overexposed areas remain penalties when these corrections cannot help.
+Be conservative about uncertain recovery: the proxy limits technical judgement.
+The annotation prompt repeats these instructions alongside the scale for every image.
+
+This evaluates estimated potential; it neither applies corrections nor validates an
+automated correction pipeline.
+
 The annotation scale is displayed at every prompt, in French as specified by the design:
 
 ```text
@@ -82,6 +106,11 @@ session; `q` quits. Running the command again resumes unlabelled images. `--revi
 revisits all annotations. `--no-viewer` allows input without opening Preview.
 Corrections retain a history with the annotator's name and timestamp.
 
+The convention version and exact instructions are stored with labels and their history.
+Labels recorded before this convention was introduced remain unspecified; running
+`annotate` revisits them under the current instructions without automatically changing
+their values. They are retained in history when the annotator replaces them.
+
 Labels measure **agreement with the annotator**, not a universal truth about good
 family photos. They remain independent of model outputs.
 
@@ -91,6 +120,12 @@ The default prompt and schema are in `src/photocurate/provider.py`.
 The model returns `album_score` (an integer from 0 to 100, higher means a stronger
 candidate) and a short explanation in `reason`. It receives only the prompt and proxy
 pixels, without datetime, GPS, filename or source path.
+
+The default prompt asks for assumed corrections, remaining flaws and uncertainty in
+`reason`. Every new run's effective prompt includes the shared correction-potential
+instructions, including runs using custom prompts. The exact text sent is saved.
+Custom prompts must preserve this convention, so their scores can be compared with
+the human labels.
 
 Prepare an experiment without a key or paid requests:
 
@@ -113,17 +148,21 @@ uv run photocurate run baseline --model provider/model
 
 The exact configuration (model, endpoint, prompt, schema, score field, proxy size,
 settings, concurrency, timeout and declared privacy policy) and run membership are
-frozen in SQLite. The raw response, output, tokens, provider usage, cost, latency and
+frozen in SQLite, along with the judgement convention version and exact instructions.
+The raw response, output, tokens, provider usage, cost, latency and
 errors are recorded per image. Generation IDs and the actual provider route are retained
 when included in the provider response. Credentials are not stored.
 
-Defaults: 512 px, temperature 0, a maximum of 512 output tokens, a 60-second timeout,
-and one request at a time. Options allow comparisons with other configurations:
+Defaults: 512 px, no explicit temperature, a maximum of 512 output tokens, a 60-second
+timeout, and one request at a time. Temperature is omitted so models that do not support
+that parameter can be routed. The saved configuration records it as `null`, meaning the
+provider's default is used. Set `--temperature` only for models/routes that support it.
+Options allow comparisons with other configurations:
 
 ```sh
 uv run photocurate run baseline --model provider/model \
   --prompt prompt.txt --schema schema.json --score-field ranking.value \
-  --proxy-size 768 --temperature 0 --max-output-tokens 1024 --concurrency 2
+  --proxy-size 768 --max-output-tokens 1024 --concurrency 2
 ```
 
 The schema must describe a self-contained JSON object (local references are allowed),
@@ -135,6 +174,17 @@ selected version; otherwise preparation fails explicitly.
 are neither retried nor overwritten: create a new run to test them again.
 Invalid, ambiguous, schema-incompatible or truncated JSON responses are retained as
 errors without automatic repair. No application-level retries are performed.
+
+Errors are printed with their recorded details. HTTP 401 (authentication), 402 (credits)
+and 404 (model/route unavailable) stop further requests for the run; images not requested
+remain pending. Calls already in flight with concurrent execution may still finish.
+Commands exit with a nonzero status when a run has errors.
+
+If OpenRouter reports `No endpoints found that can handle the requested parameters`,
+check the chosen model's supported parameters. With `require_parameters: true`, an
+unsupported explicit parameter can exclude every route. Keep ZDR/no-training enabled;
+prepare a new run with compatible parameters. Resuming an older run preserves its
+original configuration, including any explicitly saved temperature.
 
 Real experiments consume OpenRouter credits. Automated tests use only a simulated
 HTTP transport.
@@ -189,6 +239,11 @@ The integration follows the official
 
 Reports use current labels at creation time, including corrections, and export the
 exact labels to preserve that interpretation. No numeric GO/NO-GO threshold is invented.
+
+Agreement metrics exclude labels whose judgement convention differs from the run's.
+Reports display this coverage gap and flag comparisons between runs with different
+conventions. Earlier runs keep their saved prompts and their original, unspecified
+convention; they are not reinterpreted as correction-potential experiments.
 
 ## Local state and development
 

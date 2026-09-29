@@ -9,17 +9,19 @@ from pathlib import Path
 import httpx
 from jsonschema import Draft202012Validator
 
+from .convention import MODEL_INSTRUCTIONS
 from .store import dumps
 
 ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
-DEFAULT_PROMPT = """Judge this personal photo in isolation for inclusion in a family photo book.
+DEFAULT_PROMPT = f"""Judge this personal photo in isolation for inclusion in a family photo book.
 Use only the visible image. You have no date, location, personal history or other photos.
+{MODEL_INSTRUCTIONS}
 Give album_score as an integer from 0 to 100 (higher means more worth keeping).
 Consider visible emotional or narrative interest, composition and technical quality.
 Do not invent personal significance, relationships or identities.
 Score anchors: 0 = discard; 33 = weak, useful only for context;
 67 = good album photo; 100 = strong, almost certain to keep.
-In reason, briefly explain the visual basis for the score and any uncertainty.
+In reason, briefly explain the score, any corrections assumed, remaining flaws and uncertainty.
 Return only the JSON object specified by the response schema."""
 DEFAULT_SCHEMA = {
     "type": "object",
@@ -77,7 +79,9 @@ def validate_config(config: dict) -> None:
         raise ValueError("A score field is required")
     if config["proxy_size"] < 1 or config["max_tokens"] < 1 or config["concurrency"] < 1:
         raise ValueError("Proxy size, max output tokens and concurrency must be positive")
-    if not numeric(config["temperature"]) or not 0 <= config["temperature"] <= 2:
+    if config["temperature"] is not None and (
+        not numeric(config["temperature"]) or not 0 <= config["temperature"] <= 2
+    ):
         raise ValueError("Temperature must be finite and between 0 and 2")
     if not numeric(config["timeout_seconds"]) or config["timeout_seconds"] <= 0:
         raise ValueError("Timeout must be finite and positive")
@@ -101,7 +105,7 @@ def response_format(schema: dict) -> dict:
 
 def make_request(config: dict, proxy: Path) -> dict:
     encoded = base64.b64encode(proxy.read_bytes()).decode("ascii")
-    return {
+    body = {
         "model": config["model"],
         "messages": [
             {
@@ -116,12 +120,14 @@ def make_request(config: dict, proxy: Path) -> dict:
             }
         ],
         "response_format": response_format(config["schema"]),
-        "temperature": config["temperature"],
         "max_tokens": config["max_tokens"],
         "stream": False,
         # Technical capability routing only. Privacy is guaranteed by the user's key.
         "provider": {"require_parameters": True},
     }
+    if config["temperature"] is not None:
+        body["temperature"] = config["temperature"]
+    return body
 
 
 def accounting(body: dict, config: dict) -> dict:
@@ -175,6 +181,7 @@ async def evaluate_image(client: httpx.AsyncClient, key: str, config: dict, prox
         "cost_usd": None,
         "cost_source": None,
         "error": None,
+        "abort_run": False,
     }
     try:
         body = make_request(config, proxy)
@@ -185,6 +192,8 @@ async def evaluate_image(client: httpx.AsyncClient, key: str, config: dict, prox
             timeout=config["timeout_seconds"],
         )
         result["raw_response"] = response.text.replace(key, "[REDACTED]") if key else response.text
+        # Authentication, credit and endpoint failures cannot be fixed by another image.
+        result["abort_run"] = response.status_code in (401, 402, 404)
         try:
             payload = parse_json(response.text)
         except (ValueError, TypeError) as exc:

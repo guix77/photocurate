@@ -63,6 +63,7 @@ def describe_run(store: Store, run_id: int, top_k: list[int]) -> dict:
         for row in store.db.execute(
             """SELECT rm.position, rm.version_id, rm.proxy_path, m.source_path,
                   hl.label, hl.annotator, hl.updated_at AS label_updated_at,
+                  hl.convention_json AS label_convention_json,
                   r.status, r.score, r.output_json, r.latency_ms, r.cost_usd, r.cost_source,
                   r.input_tokens, r.output_tokens, r.error
            FROM run_members rm
@@ -75,16 +76,26 @@ def describe_run(store: Store, run_id: int, top_k: list[int]) -> dict:
             (run_id,),
         ).fetchall()
     ]
+    for row in rows:
+        label_convention = (
+            json.loads(row["label_convention_json"]) if row["label_convention_json"] else None
+        )
+        matches = label_convention == config.get("judgement_convention")
+        row["label_matches_convention"] = row["label"] is not None and matches
+
+    def numerically_labelled(row):
+        return row["label_matches_convention"] and row["label"] in ("0", "1", "2", "3")
+
     successes = [row for row in rows if row["status"] == "ok"]
-    paired = [row for row in successes if row["label"] in ("0", "1", "2", "3")]
+    paired = [row for row in successes if numerically_labelled(row)]
     ordered = sorted(successes, key=lambda row: (-row["score"], row["position"]))
-    numeric_labels = [row for row in rows if row["label"] in ("0", "1", "2", "3")]
+    numeric_labels = [row for row in rows if numerically_labelled(row)]
     strong_total = sum(row["label"] == "3" for row in numeric_labels)
     top_metrics = []
     for k in sorted(set(top_k)):
         selected = ordered[:k]
-        judged = [row for row in selected if row["label"] in ("0", "1", "2", "3")]
-        strong = sum(row["label"] == "3" for row in selected)
+        judged = [row for row in selected if numerically_labelled(row)]
+        strong = sum(row["label"] == "3" for row in judged)
         boundary = selected[-1]["score"] if selected else None
         tie_total = sum(row["score"] == boundary for row in ordered) if selected else 0
         tie_inside = sum(row["score"] == boundary for row in selected) if selected else 0
@@ -94,6 +105,10 @@ def describe_run(store: Store, run_id: int, top_k: list[int]) -> dict:
                 "selected": len(selected),
                 "numerically_labelled": len(judged),
                 "unlabelled_or_unjudgeable": len(selected) - len(judged),
+                "incompatible_labels": sum(
+                    row["label"] is not None and not row["label_matches_convention"]
+                    for row in selected
+                ),
                 "precision_human_2_or_3": (
                     sum(row["label"] in ("2", "3") for row in judged) / len(judged)
                     if judged
@@ -110,11 +125,11 @@ def describe_run(store: Store, run_id: int, top_k: list[int]) -> dict:
     for row, rank in zip(successes, ranked, strict=True):
         row["rank_percentile"] = (rank - 1) / (len(successes) - 1) if len(successes) > 1 else 0.5
     bad_high = sorted(
-        [row for row in successes if row["label"] == "0"],
+        [row for row in paired if row["label"] == "0"],
         key=lambda row: (-row["rank_percentile"], row["position"]),
     )[:10]
     strong_low = sorted(
-        [row for row in successes if row["label"] == "3"],
+        [row for row in paired if row["label"] == "3"],
         key=lambda row: (row["rank_percentile"], row["position"]),
     )[:10]
     attempted = [row for row in rows if row["status"] is not None]
@@ -146,6 +161,9 @@ def describe_run(store: Store, run_id: int, top_k: list[int]) -> dict:
         "annotators": sorted({row["annotator"] for row in rows if row["annotator"]}),
         "quality": {
             "paired_images": len(paired),
+            "convention_mismatches": sum(
+                row["label"] is not None and not row["label_matches_convention"] for row in rows
+            ),
             "spearman": spearman(
                 [int(row["label"]) for row in paired], [row["score"] for row in paired]
             ),
@@ -225,6 +243,20 @@ def markdown(reports: list[dict]) -> str:
             ),
             "",
         ]
+        same_convention = all(
+            report["config"].get("judgement_convention")
+            == reports[0]["config"].get("judgement_convention")
+            for report in reports[1:]
+        )
+        lines += [
+            "Comparison judgement conventions: "
+            + (
+                "identical."
+                if same_convention
+                else "**different — agreement metrics do not measure the same judgement target.**"
+            ),
+            "",
+        ]
     lines += [
         "| Run | Model | Images | Paired | Spearman | Cost USD | USD / 1,000 | p50 ms | Errors |",
         "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
@@ -248,8 +280,20 @@ def markdown(reports: list[dict]) -> str:
             f"Set: {cell(report['set_name'])}; run status: {report['status']}; "
             f"frozen size: {report['run_size']}; current set size: {report['current_set_size']}.",
             "",
+            "Judgement convention: "
+            + cell(
+                (report["config"].get("judgement_convention") or {}).get(
+                    "id", "unspecified (legacy)"
+                )
+            )
+            + ". Recorded correction-potential conventions estimate what reasonable standard "
+            "non-generative corrections could achieve; they do not validate a correction pipeline.",
+            "",
             f"Labels: {cell(dumps(report['label_counts']))}. "
             f"Annotators: {cell(', '.join(report['annotators'])) or 'none'}.",
+            "",
+            f"Labels excluded for incompatible judgement conventions: "
+            f"{quality['convention_mismatches']}. Stored label counts above include these labels.",
             "",
             f"Attempts: {op['attempted']}; pending: {op['pending']}; "
             f"outcomes: {cell(dumps(op['status_counts']))}.",
@@ -266,8 +310,10 @@ def markdown(reports: list[dict]) -> str:
             f"p95 {number(op['latency_ms']['p95'], 1)}.",
             "",
             "Spearman uses successful outputs with numeric human labels; '?' is excluded. "
+            "All agreement metrics require matching judgement conventions. "
             "Top-K is selected among all successful outputs before excluding unlabelled "
-            "or '?' images from its precision denominator. Recall includes all labelled "
+            "images, '?' labels or incompatible labels from its precision denominator. "
+            "Recall includes all compatibly labelled "
             "3 images in the frozen run, including failed model evaluations.",
             "",
             "| K | Selected | Judged | Human 2/3 precision | Human 3 recall | Boundary tie |",
@@ -335,6 +381,8 @@ def write_reports(store: Store, run_ids: list[int], top_k: list[int], destinatio
         "label",
         "annotator",
         "label_updated_at",
+        "label_convention_json",
+        "label_matches_convention",
         "status",
         "score",
         "latency_ms",

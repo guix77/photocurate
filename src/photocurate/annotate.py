@@ -3,8 +3,9 @@
 import subprocess
 import sys
 
+from .convention import HUMAN_INSTRUCTIONS, JUDGEMENT_CONVENTION
 from .media import ensure_proxy
-from .store import Store
+from .store import Store, dumps
 
 SCALE = """0 = à jeter
 1 = bof / seulement si utile au contexte
@@ -29,10 +30,19 @@ def annotate(
     evaluation = store.get_set(name)
     members = store.members(evaluation["id"])
     labels = {row["position"]: row["label"] for row in members}
+    current_convention = dumps(JUDGEMENT_CONVENTION)
+    matching = {row["position"]: row["convention_json"] == current_convention for row in members}
+    outdated = sum(row["label"] is not None and not matching[row["position"]] for row in members)
+    if outdated:
+        output(f"Convention mise à jour : {outdated} annotations à revoir.")
     queue = (
         list(range(len(members)))
         if review
-        else [i for i, row in enumerate(members) if row["label"] is None]
+        else [
+            i
+            for i, row in enumerate(members)
+            if row["label"] is None or not matching[row["position"]]
+        ]
     )
     done = []
     corrected = None
@@ -60,6 +70,7 @@ def annotate(
         output(f"\n{name}: {row['position']}/{len(members)} — {row['source_path']}")
         if labels[row["position"]] is not None:
             output(f"Label actuel : {labels[row['position']]}")
+        output(HUMAN_INSTRUCTIONS)
         output(SCALE)
         output("b = corriger la précédente ; q = quitter et reprendre plus tard")
         try:
@@ -80,6 +91,7 @@ def annotate(
             continue
         store.set_label(evaluation["id"], row["position"], label, annotator)
         labels[row["position"]] = label
+        matching[row["position"]] = True
         count += 1
         if corrected is not None:
             corrected = None
@@ -88,6 +100,8 @@ def annotate(
     return {
         "name": name,
         "writes": count,
-        "labelled": sum(label is not None for label in labels.values()),
+        "labelled": sum(
+            label is not None and matching[position] for position, label in labels.items()
+        ),
         "size": len(members),
     }

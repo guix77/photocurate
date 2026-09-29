@@ -179,3 +179,40 @@ def test_resume_finalizes_run_interrupted_after_last_result_without_another_call
         execute_run(store, run_id, "fake-key", lambda _: None, httpx.MockTransport(never_called))
     )
     assert result["status"] == "completed" and result["images"] == 1
+
+
+@pytest.mark.parametrize("http_status", [401, 402, 404])
+def test_global_provider_failure_stops_requests_and_surfaces_error(
+    store,
+    indexed,
+    config,
+    http_status,
+):
+    create_set(store, "sample", indexed, 4, 42)
+    run_id = create_run(store, "sample", config)
+    calls = []
+    progress = []
+
+    def handler(request):
+        calls.append(request)
+        return httpx.Response(
+            http_status,
+            json={
+                "error": {
+                    "code": http_status,
+                    "message": "No usable endpoint for this configuration",
+                }
+            },
+        )
+
+    result = asyncio.run(
+        execute_run(store, run_id, "fake-key", progress.append, httpx.MockTransport(handler))
+    )
+    assert len(calls) == 1
+    assert result == {"run_id": run_id, "status": "failed", "images": 4, "errors": 1, "pending": 3}
+    assert store.get_run(run_id)["status"] == "failed"
+    assert any(f"HTTP {http_status}" in line for line in progress)
+    assert any("Stopped:" in line for line in progress)
+    report = describe_run(store, run_id, [1])
+    assert report["operations"]["attempted"] == 1
+    assert report["operations"]["pending"] == 3
