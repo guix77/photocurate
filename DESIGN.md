@@ -116,7 +116,7 @@ The stable semantic judgement target is **`standard_non_generative_v1`**: judge 
 
 Ordinary corrections can include cropping, straightening, moderate exposure and colour adjustments, red-eye correction, mild denoising and sharpening. These examples document the rubric; the per-image instructions need not repeat a catalogue of corrections or defects.
 
-Be conservative when recoverability is unclear. Reduced proxies limit technical judgement; they do not justify assuming that unseen detail exists in the original.
+Reduced proxies limit technical judgement; they do not justify assuming that unseen detail exists in the original.
 
 The v1 measures **estimated correction potential**. It does not apply these corrections or demonstrate that an automated correction pipeline can realize that potential.
 
@@ -273,6 +273,10 @@ However, every candidate prompt/schema must satisfy the following functional con
 - the exact prompt, exact schema and independently declared semantic target ID are persisted with each run.
 
 The built-in default prompt is explicitly associated with `standard_non_generative_v1`. A custom `--prompt` must declare its target with `--judgement-target ID` to be eligible for agreement metrics; otherwise its target is stored as unspecified and it is excluded from agreement metrics against labelled data. Never infer semantic equivalence from prompt text or silently assign the current target to an arbitrary custom prompt. Send custom prompts exactly as supplied, without automatic instruction prefixing.
+
+PhotoCurate's default judgement is intentionally opinionated: assess composition, technical quality and subject presentation. For photos centered on people, favor clear, flattering presentation and meaningful engagement with the camera or scene. Direct eye contact matters for posed portraits, but is not required for strong candid or action moments. The default prompt has no explicit emotional/narrative-interest criterion or blanket instruction to be conservative; it requests a brief justification and relevant uncertainty.
+
+Review and freeze this default prompt before creating the holdout, and do not tune it using holdout results. This freeze preserves `standard_non_generative_v1`, the existing human labels and the separation between semantic target, human provenance and exact experimental prompt. It introduces no user settings or list of rules specific to development-set failure cases.
 
 Persisted run configurations remain immutable, including their prompt and declared target. Existing convention snapshots can contain instruction strings, but those strings are provenance rather than compatibility keys. No SQLite migration or rewrite of existing labels or runs is required for this separation.
 

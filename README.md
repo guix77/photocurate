@@ -79,8 +79,8 @@ The stable judgement target is `standard_non_generative_v1`: judge each photo in
 isolation for a family album, using only visible content and no personal knowledge or
 external context. Assess its potential after ordinary, non-generative corrections that
 could reasonably be automated. Do not assume blur, lost detail or missing content can
-be recovered; be conservative when uncertain. The short human instructions and the
-scale are displayed for every image.
+be recovered. The short human instructions and the scale are displayed for every
+image.
 
 This evaluates estimated potential; it neither applies corrections nor validates an
 automated correction pipeline.
@@ -119,8 +119,17 @@ candidate) and a short explanation in `reason`. It receives only the prompt and 
 pixels, without datetime, GPS, filename or source path.
 
 The built-in default prompt explicitly declares `standard_non_generative_v1` as its
-target. It asks for a short justification in `reason`, with assumed corrections or
-uncertainty when relevant. Prompts are experimental configurations, independent of
+target. PhotoCurate is intentionally opinionated about album-worthiness: the default
+prompt assesses composition, technical quality and subject presentation. For photos
+centered on people, it favors clear, flattering presentation and meaningful engagement
+with the camera or scene. Direct eye contact matters for posed portraits, while strong
+candid and action moments do not require it. It asks for a brief justification and
+relevant uncertainty in `reason`, without an explicit emotional/narrative-interest
+criterion or a blanket instruction to be conservative.
+
+This default prompt was reviewed and frozen before creating the holdout, so holdout
+results cannot guide its tuning. It adds no user settings or rules specific to reviewed
+development-set cases. Prompts remain experimental configurations, independent of
 human instruction wording: the exact supplied text is sent and saved without a prefix.
 
 A custom `--prompt` has an **unspecified target by default**. Its operational metrics

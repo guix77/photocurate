@@ -46,3 +46,10 @@ Next step: run GPT-6 Luna again on the same frozen 100-photo evaluation set usin
 - Runs 2, 3, 4 and 5 remain immutable. No VLM run was relaunched and no paid VLM call was made.
 - Future reports use the corrected human ground truth: `0: 26`, `1: 32`, `2: 29`, `3: 13`. Local comparisons for runs 2/3/4, 2/5 and 2/3/4/5 were regenerated from existing outputs.
 - The [baseline v1 report](experiments/2026-09-29-isolated-photo-baseline-v1.md) remains deliberately unchanged as a historical snapshot of results before this correction.
+
+## 2026-09-29 — Default prompt reviewed and frozen before holdout creation
+
+- Reviewed and froze the default VLM prompt before creating the holdout to prevent tuning guided by holdout results.
+- The opinionated album judgement emphasizes composition, technical quality and subject presentation while retaining the limits on non-generative corrections and lost information.
+- Kept `standard_non_generative_v1`, human provenance and experimental prompts separate. Existing labels remain compatible and all past runs unchanged; no user settings or development-set-specific rule list was added.
+- Validation: 61 tests, Ruff and formatting checks passed. No VLM run was launched and no paid VLM call was made.
