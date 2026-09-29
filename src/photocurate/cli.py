@@ -141,6 +141,15 @@ def parser() -> argparse.ArgumentParser:
     comparison = moment_commands.add_parser("report", help="write paired agreement and operations")
     comparison.add_argument("name")
     comparison.add_argument("--phase", choices=("pilot", "test"), default="test")
+    repeat = moment_commands.add_parser(
+        "repeat", help="repeat the preselected joint order controls"
+    )
+    repeat.add_argument("name")
+    repeat.add_argument("--prepare-only", action="store_true")
+    repeat_summary = moment_commands.add_parser(
+        "repeat-report", help="compare within/between orders"
+    )
+    repeat_summary.add_argument("name")
     return cli
 
 
@@ -167,6 +176,22 @@ def dispatch_moments(args):
         return {"experiment_dir": str(directory)}
     if args.moment_command == "report":
         return moments.paired_report(directory, args.phase)
+    if args.moment_command in ("repeat", "repeat-report"):
+        from .moment_repeat import execute_repeat, prepare_repeat, repeat_report
+
+        if args.moment_command == "repeat-report":
+            return repeat_report(directory)
+        if args.prepare_only:
+            run = prepare_repeat(directory)
+            return {
+                "status": "prepared",
+                "groups": len(run["groups"]),
+                "requests": len(run["operations"]),
+            }
+        load_dotenv(args.env_file, override=False)
+        return asyncio.run(
+            execute_repeat(directory, os.environ.get("OPENROUTER_API_KEY", "").strip())
+        )
     prompt = args.prompt.read_text(encoding="utf-8") if args.prompt else None
     if args.prepare_only:
         run = moments.prepare_run(directory, args.phase, prompt)

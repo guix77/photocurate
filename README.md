@@ -105,6 +105,30 @@ stability. Errors count as failed selections; pending groups do not yield a fina
 The scope is relative choice of a single representative, not rejection, complementary
 multi-photo selection, automatic grouping quality or a final album.
 
+### Small joint-selection repeat diagnostic
+
+After the initial test, reuse its preselected order controls without choosing groups
+based on their results. Add one identical-order and one reversed-order joint request
+per control (20 new requests for ten controls). The prompt, parameters, proxies,
+schemas and alias mappings remain exactly those of the frozen initial test. The new
+session balances which order is requested first. No isolated scoring is repeated.
+
+```sh
+uv run photocurate moments repeat moments-v1 --prepare-only
+uv run photocurate moments repeat moments-v1
+uv run photocurate moments repeat-report moments-v1
+```
+
+Preparation verifies and freezes source checksums without a model call. Execution
+resumes only missing requests; initial and new errors are retained without retries.
+Results live separately in `runs/test/repeat/`, preserving initial reports and responses.
+The report compares identical-order repetitions with between-order comparisons and
+distinguishes equivalent acceptable choices from harmful or helpful changes. It includes
+coverage, errors, costs and a sensitivity excluding human second-pass scope changes.
+Comparisons remain descriptive: repeated pairs within a group are dependent, and provider
+routing or time differences can also affect choices. This small diagnostic is not proof
+of an order effect and does not expand the initial test or alter its prompts.
+
 ## Index and select
 
 The corpus path is always supplied at runtime. Quote paths containing spaces.

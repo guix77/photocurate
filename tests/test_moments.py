@@ -9,6 +9,7 @@ import httpx
 import pytest
 
 from photocurate.cli import main
+from photocurate.moment_repeat import execute_repeat, prepare_repeat, repeat_report
 from photocurate.moment_viewer import annotation_server, public_state
 from photocurate.moments import (
     annotation_groups,
@@ -228,6 +229,176 @@ def completion(content, finish="stop"):
             "usage": {"cost": 0.001, "prompt_tokens": 100, "completion_tokens": 20},
         },
     )
+
+
+def complete_repeat_source(directory, handler=None):
+    annotate_all(directory)
+    first = annotation_groups(directory, load_manifest(directory), "retest")[0]
+    save_annotation(
+        directory, "retest", {"group_id": first["id"], "status": "out_of_scope"}, "human"
+    )
+
+    def default_handler(request):
+        images = sum(
+            item["type"] == "image_url"
+            for item in json.loads(request.content)["messages"][0]["content"]
+        )
+        return completion(
+            {"album_score": 80, "reason": "x"}
+            if images == 1
+            else {"selected_id": "A", "reason": "x"}
+        )
+
+    asyncio.run(
+        execute(
+            directory,
+            "test",
+            "fake",
+            transport=httpx.MockTransport(handler or default_handler),
+            progress=lambda _: None,
+        )
+    )
+    paired_report(directory, "test")
+
+
+def test_repeat_freezes_exact_requests_reports_within_between_and_resumes(moment_experiment):
+    directory = moment_experiment
+    bodies = []
+
+    def handler(request):
+        body = json.loads(request.content)
+        bodies.append(body)
+        images = sum(item["type"] == "image_url" for item in body["messages"][0]["content"])
+        return completion(
+            {"album_score": 80, "reason": "x"}
+            if images == 1
+            else {"selected_id": "A", "reason": "x"}
+        )
+
+    complete_repeat_source(directory, handler)
+    initial_files = {
+        path: path.read_bytes()
+        for path in (directory / "runs" / "test").iterdir()
+        if path.is_file()
+    }
+    original_bodies = list(bodies)
+    run = prepare_repeat(directory)
+    assert len(bodies) == 8  # Preparation has no model request.
+    assert len(run["groups"]) == 2 and len(run["operations"]) == 4
+    assert {row["method"] for row in run["operations"][::2]} == {"original", "reversed"}
+    pending = repeat_report(directory)
+    assert pending["complete"] is False
+    assert pending["comparisons"]["within_original"]["valid"] == 0
+    assert pending["complete_cases"]["within_order_agreement"] is None
+    transport = httpx.MockTransport(handler)
+    result = asyncio.run(execute_repeat(directory, "fake", transport, progress=lambda _: None))
+    assert result == {"status": "completed", "recorded_requests": 4, "errors": 0}
+    assert all(body in original_bodies for body in bodies[8:])
+    report = repeat_report(directory)
+    assert report["complete"] is True
+    assert report["complete_cases"] == {
+        "groups": 2,
+        "within_order_agreement": 1,
+        "between_order_agreement": 0,
+    }
+    assert report["without_scope_changes"]["within_original"]["valid"] == 1
+    assert report["operations"]["cost_total_usd"] == 0.004
+    asyncio.run(execute_repeat(directory, "fake", transport, progress=lambda _: None))
+    assert len(bodies) == 12
+    assert all(path.read_bytes() == content for path, content in initial_files.items())
+
+
+def test_repeat_preserves_invalid_responses_and_never_retries(moment_experiment):
+    directory = moment_experiment
+    complete_repeat_source(directory)
+    calls = []
+
+    def invalid(request):
+        calls.append(request)
+        return completion({"selected_id": "Z", "reason": "invalid"})
+
+    transport = httpx.MockTransport(invalid)
+    result = asyncio.run(execute_repeat(directory, "fake", transport, progress=lambda _: None))
+    assert result["errors"] == 4
+    report = repeat_report(directory)
+    assert report["complete"] is True
+    assert report["comparisons"]["within_original"]["valid"] == 0
+    assert report["complete_cases"]["within_order_agreement"] is None
+    asyncio.run(execute_repeat(directory, "fake", transport, progress=lambda _: None))
+    assert len(calls) == 4
+
+
+@pytest.mark.parametrize("changed", ["proxy", "source"])
+def test_repeat_blocks_changed_inputs_before_paid_request(moment_experiment, changed):
+    directory = moment_experiment
+    complete_repeat_source(directory)
+    run = prepare_repeat(directory)
+    path = (
+        Path(run["groups"][0]["photos"][0]["proxy_path"])
+        if changed == "proxy"
+        else directory / "runs" / "test" / "results.jsonl"
+    )
+    path.write_bytes(path.read_bytes() + b"changed")
+    calls = []
+    with pytest.raises(ValueError, match="changed"):
+        asyncio.run(
+            execute_repeat(
+                directory, "fake", httpx.MockTransport(lambda request: calls.append(request))
+            )
+        )
+    assert calls == []
+
+
+def test_repeat_requires_complete_initial_test(moment_experiment):
+    annotate_all(moment_experiment)
+    prepare_run(moment_experiment, "test")
+    with pytest.raises(ValueError, match="Finish the initial test"):
+        prepare_repeat(moment_experiment)
+
+
+def test_repeat_keeps_invalid_historical_controls_separate(moment_experiment):
+    def initial(request):
+        images = sum(
+            item["type"] == "image_url"
+            for item in json.loads(request.content)["messages"][0]["content"]
+        )
+        return completion(
+            {"album_score": 80, "reason": "x"}
+            if images == 1
+            else {"selected_id": "Z", "reason": "invalid"}
+        )
+
+    complete_repeat_source(moment_experiment, initial)
+    asyncio.run(
+        execute_repeat(
+            moment_experiment,
+            "fake",
+            httpx.MockTransport(lambda _: completion({"selected_id": "A", "reason": "x"})),
+            progress=lambda _: None,
+        )
+    )
+    report = repeat_report(moment_experiment)
+    assert report["comparisons"]["between_initial"]["valid"] == 0
+    assert report["comparisons"]["between_repeat"]["same_image"] == 0
+    assert report["comparisons"]["between_repeat"]["valid"] == 2
+    assert report["complete_cases"]["groups"] == 0
+
+
+def test_repeat_cli_prepares_without_store_or_model_call(moment_experiment, monkeypatch, capsys):
+    complete_repeat_source(moment_experiment)
+    from photocurate import cli, moment_repeat
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Preparation must not open SQLite or make a model call")
+
+    monkeypatch.setattr(cli, "Store", forbidden)
+    monkeypatch.setattr(moment_repeat, "execute_repeat", forbidden)
+    monkeypatch.setattr(cli, "load_dotenv", forbidden)
+    args = ["--state-dir", str(moment_experiment.parents[1])]
+    assert main([*args, "moments", "repeat", "moment", "--prepare-only"]) == 0
+    assert json.loads(capsys.readouterr().out) == {"groups": 2, "requests": 4, "status": "prepared"}
+    assert main([*args, "moments", "repeat-report", "moment"]) == 0
+    assert json.loads(capsys.readouterr().out)["complete"] is False
 
 
 def test_paired_execution_baseline_group_pixels_relabeling_resume_and_report(

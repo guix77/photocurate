@@ -155,3 +155,30 @@ Next step: run GPT-6 Luna again on the same frozen 100-photo evaluation set usin
   orders. The user retains execution of any new paid model requests.
 - Validation before commit: all 77 tests passed; Ruff, formatting and whitespace checks
   passed. Private photos, annotations, frozen runs and provider responses remain Git-ignored.
+
+## 2026-09-29 — Stored-response diagnostic and joint repeat control prepared
+
+- Committed the initial implementation, protocol and result journal as `f3b7100` before
+  continuing the diagnostic, as requested.
+- Existing responses show the three isolated errors affect only two groups (g043 and
+  g051), both also incorrect under joint selection. Restricting to fully valid methods
+  gives 23/38 versus 27/38; excluding g030 gives 22/39 versus 26/39. Neither explains
+  the observed gain or resolves its uncertainty.
+- Of four valid image changes under reversed order, one is an equivalent acceptable
+  alternative, two are harmful and one is helpful. Exact identity is stable in 5/9;
+  acceptable/unacceptable status in 6/9. Excluding g030 gives 4/8 identity stability.
+- Added the [stored-response analysis and repeat protocol](experiments/2026-09-29-moment-selection-diagnostic-v1.md).
+  Keep the same ten preselected controls and add one original-order and one reversed-order
+  joint request each, with balanced new-session order and exact frozen configuration.
+- Added `moments repeat --prepare-only / repeat / repeat-report`. Separate artifacts,
+  source/proxy checksums, resumable missing requests, retained errors and coverage prevent
+  changes to the initial experiment. Reports distinguish identity stability from
+  acceptable-choice transitions, including a sensitivity for second-pass scope changes.
+- New paid requests remain user-executed with `uv run`; preparation and mock verification
+  make no external model calls.
+- Prepared the real repeat snapshot: ten controls, 20 requests, five original-first and
+  five reversed-first groups. Verified frozen inputs and generated the pending repeat
+  report; zero new requests are recorded.
+- Validation: all 84 tests passed, including exact request preservation, resumability,
+  historical/new error coverage, scope sensitivity and rejection of changed inputs before
+  model calls. Ruff, formatting and whitespace checks passed.
