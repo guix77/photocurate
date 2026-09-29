@@ -63,3 +63,12 @@ Next step: run GPT-6 Luna again on the same frozen 100-photo evaluation set usin
 - Validation: 66 tests passing, Ruff, formatting and `git diff --check` passing.
 - Existing SQLite state remained unchanged.
 - No holdout was created and no VLM call was made.
+
+## 2026-09-29 — Independent holdout validation
+
+- After freezing the prompt, created a random 100-photo holdout from the same corpus with seed 42 and zero media overlap with the 100-photo development set. All holdout annotations preceded the first holdout VLM run; labels retain `standard_non_generative_v1`.
+- Run 8, GPT-6 Luna: 100/100 without error, Spearman 0.694, human 2/3 precision of 70% at Top-10 and 65% at Top-20, observed cost $0.1358 per 1,000 photos.
+- Run 10, Qwen3 VL 30B A3B: 100/100 without error, Spearman 0.559, 60% at Top-10 and 50% at Top-20; faster but weaker agreement with the annotator.
+- Run 9, GLM 5.3 Flash: interrupted after four stored responses, including two `finish_reason='length'` failures under default OpenRouter routing. No full-holdout quality conclusion is drawn for GLM.
+- Retain GPT-6 Luna for the next isolated-photo stage. Only three holdout labels are `3`, making their recall unstable. These results validate a useful isolated-photo signal, not same-moment/burst selection or final album quality.
+- Added the [holdout v1 report](experiments/2026-09-29-isolated-photo-holdout-v1.md). The baseline v1 historical report, code and existing evaluation state remain unchanged; documenting this milestone launched no new VLM call.
