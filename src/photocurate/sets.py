@@ -28,16 +28,30 @@ def candidates(store: Store, root: Path) -> list:
     return eligible
 
 
-def create_set(store: Store, name: str, source: Path, size: int, seed: int) -> dict:
+def create_set(
+    store: Store,
+    name: str,
+    source: Path,
+    size: int,
+    seed: int,
+    *,
+    exclude_set: str | None = None,
+) -> dict:
     if size < 1 or not name.strip():
         raise ValueError("Set name and positive size are required")
     if store.db.execute("SELECT 1 FROM evaluation_sets WHERE name = ?", (name,)).fetchone():
         raise ValueError(f"Evaluation set already exists: {name}; use sample extend")
+    excluded = set()
+    if exclude_set is not None:
+        evaluation = store.get_set(exclude_set)
+        excluded = {row["media_id"] for row in store.members(evaluation["id"])}
     root = source_root(source)
-    available = candidates(store, root)
+    available = [row for row in candidates(store, root) if row["media_id"] not in excluded]
     if size > len(available):
+        exclusion = f" after excluding {exclude_set}" if exclude_set is not None else ""
         raise ValueError(
-            f"Requested {size} images, but only {len(available)} are indexed and unchanged"
+            f"Requested {size} images, but only {len(available)} "
+            f"are indexed and unchanged{exclusion}"
         )
     chosen = random.Random(seed).sample(available, size)
     for row in chosen:
@@ -52,7 +66,10 @@ def create_set(store: Store, name: str, source: Path, size: int, seed: int) -> d
             "INSERT INTO evaluation_members VALUES (?, ?, ?, ?)",
             [(set_id, i + 1, row["media_id"], row["version_id"]) for i, row in enumerate(chosen)],
         )
-    return {"name": name, "size": size, "seed": seed, "source_root": str(root)}
+    result = {"name": name, "size": size, "seed": seed, "source_root": str(root)}
+    if exclude_set is not None:
+        result["exclude_set"] = exclude_set
+    return result
 
 
 def extend_set(store: Store, name: str, size: int) -> dict:

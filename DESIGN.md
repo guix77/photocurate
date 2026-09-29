@@ -176,6 +176,8 @@ The first evaluation set should start with approximately **100 randomly sampled 
 
 The initial sample should be genuinely random rather than manually curated toward interesting or difficult cases.
 
+A holdout can be drawn from the same corpus with `sample create --exclude-set baseline`. Exclude every media identity in the named set before the seeded random draw, including any newer versions of those images. Persist the source, seed and selected membership without changing existing sets, labels or runs. Fail if the excluded set is unknown or too few eligible images remain. This exclusion applies only to creation, not to a later extension.
+
 If results are close or human-labelled classes `0` or `3` are too rare to support a conclusion, enlarge the same evaluation set before deciding GO/NO-GO. Keep the existing images and add further reproducibly random images from the remaining corpus. Record the additions, annotate them, and evaluate every model being compared on the same enlarged set. Preserve the membership used by earlier runs so their results remain reproducible.
 
 A separate hard-case set may be created later if the first evaluation reveals a reason to do so.

@@ -56,6 +56,9 @@ def parser() -> argparse.ArgumentParser:
     create.add_argument("--source", type=Path, required=True)
     create.add_argument("--size", type=positive, default=100)
     create.add_argument("--seed", type=int, default=42)
+    create.add_argument(
+        "--exclude-set", metavar="NAME", help="exclude all media belonging to an existing sample"
+    )
     extend = sampling.add_parser("extend")
     extend.add_argument("name")
     extend.add_argument("--size", type=positive, required=True, help="new total size")
@@ -117,7 +120,9 @@ def dispatch(args, store: Store):
         return index_corpus(store, args.source, args.proxy_size)
     if args.command == "sample":
         if args.sample_command == "create":
-            return create_set(store, args.name, args.source, args.size, args.seed)
+            return create_set(
+                store, args.name, args.source, args.size, args.seed, exclude_set=args.exclude_set
+            )
         if args.sample_command == "extend":
             return extend_set(store, args.name, args.size)
         if args.sample_command == "show":

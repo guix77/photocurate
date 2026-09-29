@@ -53,3 +53,13 @@ Next step: run GPT-6 Luna again on the same frozen 100-photo evaluation set usin
 - The opinionated album judgement emphasizes composition, technical quality and subject presentation while retaining the limits on non-generative corrections and lost information.
 - Kept `standard_non_generative_v1`, human provenance and experimental prompts separate. Existing labels remain compatible and all past runs unchanged; no user settings or development-set-specific rule list was added.
 - Validation: 61 tests, Ruff and formatting checks passed. No VLM run was launched and no paid VLM call was made.
+
+## 2026-09-29 — Disjoint holdout sampling
+
+- Added `--exclude-set` support to `sample create`.
+- Holdout sampling can now exclude every photo already present in an existing evaluation set, including newer versions of the same underlying image.
+- This enables creation of an independent holdout from the same indexed corpus without overlap with the development set.
+- Updated CLI, sampling logic, tests, README and DESIGN.
+- Validation: 66 tests passing, Ruff, formatting and `git diff --check` passing.
+- Existing SQLite state remained unchanged.
+- No holdout was created and no VLM call was made.

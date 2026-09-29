@@ -67,6 +67,18 @@ Actual sample membership is persisted. Members remain frozen even if their origi
 are subsequently changed. Earlier proxies are retained for existing annotations and
 experiments.
 
+To create a random holdout from the same corpus while excluding every member of `baseline`:
+
+```sh
+uv run photocurate sample create holdout --source "/path/to/my photos" --size 100 --seed 42 --exclude-set baseline
+```
+
+Exclusion uses media identity, so newer versions of baseline images are also excluded
+before the seeded draw. The seed, source and selected membership are persisted;
+existing samples, labels and runs are unchanged. Creation fails if the excluded sample
+is unknown or too few eligible images remain. The exclusion applies to creation only:
+it is not a stored constraint for a later `sample extend`.
+
 ## Annotate
 
 On macOS, Preview displays the current image proxy without taking focus from the terminal:
