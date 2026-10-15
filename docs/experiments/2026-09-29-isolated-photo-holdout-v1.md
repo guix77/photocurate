@@ -1,5 +1,9 @@
 # PhotoCurate — Experiment report: isolated-photo holdout v1
 
+**Historical milestone.** The next evaluation stage below was subsequently completed.
+The business project is now closed; see the [case-study summary](../../README.md).
+[Anonymized records and offline recalculation](../evidence/README.md) accompany this report.
+
 **Date:** 2026-09-29  
 **Decision:** retain **GPT-6 Luna** for the next PhotoCurate evaluation stage.
 

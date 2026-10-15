@@ -1,5 +1,9 @@
 # PhotoCurate — Experiment report: isolated-photo baseline v1
 
+**Historical snapshot.** The proposed v2 work below was superseded by the
+[target/prompt decisions and holdout](../JOURNAL.md). The business project is now closed;
+see the [case-study summary](../../README.md). Original results and analysis are preserved.
+
 **Date:** 2026-09-29  
 **Scope:** evaluation of economical vision-language models (VLMs) for ranking personal photos for possible inclusion in a family photo album, judging each image in isolation.
 

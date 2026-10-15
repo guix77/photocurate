@@ -1,5 +1,10 @@
 # PhotoCurate — Same-moment selection diagnostic v1
 
+**Final status (2026-10-15).** The analysis of existing responses below is complete.
+The additional 20-request protocol was prepared but never executed and is discontinued.
+The [business project is closed](../../README.md); original findings remain unchanged.
+[Anonymized records and offline recalculation](../evidence/README.md) cover the initial test.
+
 Date: 2026-09-29. Initial source: frozen `moments-v1` pilot and test responses.
 This supplements the [initial protocol](2026-09-29-moment-selection-protocol-v1.md).
 Initial reports and human labels remain unchanged. No new model call was made to

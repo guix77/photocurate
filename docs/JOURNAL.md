@@ -1,5 +1,8 @@
 # PhotoCurate — Development Journal
 
+**Status (2026-10-15): closed.** Entries below preserve the decisions and proposed next
+steps at each milestone. The final closure entry supersedes any outstanding next steps.
+
 ## 2026-09-29 — Isolated-photo VLM baseline
 
 - Indexed corpus: 4,851 photos.
@@ -182,3 +185,27 @@ Next step: run GPT-6 Luna again on the same frozen 100-photo evaluation set usin
 - Validation: all 84 tests passed, including exact request preservation, resumability,
   historical/new error coverage, scope sensitivity and rejection of changed inputs before
   model calls. Ruff, formatting and whitespace checks passed.
+
+## 2026-10-15 — Business closure and technical evidence retained
+
+- Recorded the owner's business decision: **KILL**, despite encouraging technical signals.
+  The anticipated adjustments needed for commercially acceptable quality, major UX
+  friction primarily around Google Photos, and limited perceived commercial demand did
+  not justify further investment. These are the owner's assessments, not conclusions
+  from a market study or an implemented Google Photos integration.
+- The isolated-photo holdout and paired same-moment experiment remain completed evidence.
+  Their limitations and inconclusive quality comparison remain unchanged.
+- The supplementary repeat diagnostic remains prepared but unexecuted: zero of its
+  20 additional requests were sent. No further experimentation or product work is planned.
+- Added a concise case-study entry to the README, including the owner's role in framing,
+  trade-offs, human annotation/review, interpretation and the business decision. Codex
+  assisted implementation, tests and documentation.
+- Added [anonymized structured evidence and offline recalculation](evidence/README.md)
+  for the holdout and 40-group test. It excludes images, paths, capture metadata, model
+  reasons, raw responses and free-text error messages. Full private state remains local.
+- Closure work makes no new inference call and changes no application behavior,
+  annotations, historical runs or private reports.
+- Validation: offline recalculation matched every exported reference metric, including
+  the stored-response sensitivity analyses, in a copy without private state or installed
+  dependencies. Privacy-field checks, document links, Ruff, formatting and whitespace
+  checks passed; private-state file hashes remained unchanged.

@@ -1,20 +1,60 @@
 # PhotoCurate
 
-A Python proof of concept for measuring agreement between economical VLMs and a human
-annotator on personal photos judged in isolation. The scope is defined in [DESIGN.md](DESIGN.md).
-A v1 GO validates neither comparison within a moment or burst nor the quality of a final album.
+A completed Applied AI proof of concept evaluating economical vision-language models
+for family-photo curation: first ranking isolated photos, then choosing one representative
+per moment. **Business decision: KILL.** The repository is retained as a technical case
+study; no further product development or experimentation is planned.
 
-The next experiment compares **one representative per moment**, using isolated Luna
-scores versus a joint multi-image choice on the same human-annotated groups. See the
-[same-moment protocol](docs/experiments/2026-09-29-moment-selection-protocol-v1.md).
+## Case study at a glance
+
+**Question.** Can a low-cost VLM provide a useful curation signal before investing in an
+album-generation product? The real corpus contained 4,851 photos. Evaluation used a
+100-photo development set, a disjoint 100-photo holdout, then a five-group pilot and a
+40-group paired same-moment test.
+
+**My role (`guix`).** I framed the need and constraints, made the trade-offs, annotated
+and reviewed the photos, interpreted the results and made the business decision.
+Codex assisted with implementation, tests and documentation. This case study presents
+that human-led, AI-assisted workflow.
+
+**Key decisions.** Use a deterministic Python pipeline and SQLite to track experiments;
+introduce complexity only for a measured need. Preserve originals and use metadata-free
+512 px proxies. Freeze samples, prompts and configurations; keep human labels independent
+of model outputs and retain failures rather than silently repairing or retrying them.
+
+| Evaluation | Observed result | Decision and limit |
+| --- | --- | --- |
+| Isolated-photo holdout, 100 photos | Luna: Spearman 0.694; 70% human-good/strong photos in Top-10 versus 31% in the set; $0.1358 per 1,000 photos extrapolated; 100/100 valid outputs. Qwen was faster but less concordant; GLM was interrupted after repeated output truncation. | Retain Luna for the paired experiment. One corpus and annotator; no universal model ranking. |
+| Same-moment test, 40 groups | Joint choice: 27/40 acceptable selections versus 23/40 for isolated scoring. Gain +10 points, bootstrap 95% interval [-7.5, +27.5]. Median serial group latency 5.0 s versus 16.6 s; observed cost about $0.000214 versus $0.000408 per group. | Joint choice remains promising; quality superiority is unproven. Cost/latency compare execution from scratch. |
+| Initial order controls | Same image retained in 5/9 valid reversed-order comparisons; two changes harmed acceptability and one helped. | Stability remains unresolved; order and model variability are confounded. The additional 20-request repeat was prepared but never executed. |
+
+**Why stop despite encouraging technical results?** The owner judged that commercially
+acceptable quality would require many further adjustments, that the user experience
+would face major friction, primarily around Google Photos, and that commercial demand
+was limited. These are business assessments, not measured market-validation results
+or a technical failure of the PoC. No Google Photos integration was implemented or validated.
+
+**What this demonstrates.** Problem framing, proportionate architecture, multimodal
+evaluation, quality/cost/reliability trade-offs and decisions under uncertainty. It does
+not demonstrate a production service, final-album quality, a photo-correction pipeline
+or a complete operating-cost model. ZDR/no-training depends on external OpenRouter
+account/key settings; the repository does not independently verify those settings.
+
+Start with the [holdout results](docs/experiments/2026-09-29-isolated-photo-holdout-v1.md),
+the [paired results and stability analysis](docs/experiments/2026-09-29-moment-selection-diagnostic-v1.md),
+and the [anonymized evidence and offline recalculation](docs/evidence/README.md).
+Design rationale is in [DESIGN.md](DESIGN.md).
 
 ## Experiments and development journal
 
-PhotoCurate is developed as an evidence-driven Applied AI experiment, not only as an implementation.
+The experiments below are historical. Their proposed next steps are not an active roadmap.
 
 - [Development journal](docs/JOURNAL.md) — chronological record of hypotheses, methodology changes, experiments, findings and decisions.
 
-Generated run artifacts remain in the private local `.photocurate/reports/` state and are not versioned with the source repository.
+Full generated artifacts remain in private local state. A structured, anonymized subset
+is versioned under [docs/evidence/](docs/evidence/README.md), without images or free-text
+descriptions of family photos. The command reference below documents the existing tool;
+new inference calls are not needed to review this case study.
 
 ## Installation
 
@@ -106,6 +146,9 @@ The scope is relative choice of a single representative, not rejection, compleme
 multi-photo selection, automatic grouping quality or a final album.
 
 ### Small joint-selection repeat diagnostic
+
+**Historical, unexecuted protocol.** Its inputs were prepared, but none of the 20 additional
+requests was sent. It was discontinued when the business project was closed.
 
 After the initial test, reuse its preselected order controls without choosing groups
 based on their results. Add one identical-order and one reversed-order joint request

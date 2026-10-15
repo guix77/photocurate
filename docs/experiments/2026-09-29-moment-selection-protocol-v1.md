@@ -1,5 +1,8 @@
 # PhotoCurate — Same-moment selection protocol v1
 
+**Closed experiment.** The pilot and initial test were completed. No expansion or further
+experiment is planned following the [business KILL decision](../../README.md).
+
 Date: 2026-09-29. Status: pilot and 40-group test completed; initial results and next
 diagnostic recorded in [JOURNAL](../JOURNAL.md). The protocol below describes the
 frozen initial experiment; supplementary analyses do not replace its primary results.

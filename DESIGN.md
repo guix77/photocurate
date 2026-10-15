@@ -1,5 +1,10 @@
 # Photo Curation VLM Evaluation — Design
 
+**Status (2026-10-15): closed technical case study.** This document records the original
+v1 design. The later same-moment experiment is documented separately. Future phases
+below are historical possibilities, not planned work. See the [README](README.md) for
+the final results, business KILL decision and evidence available for review.
+
 ## 1. Purpose
 
 This project is a small, source-agnostic proof of concept for evaluating whether a low-cost vision-language model can judge the album-worthiness of personal photos well enough to justify further work on automatic photo-book curation.

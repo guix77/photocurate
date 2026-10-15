@@ -1,0 +1,287 @@
+{
+  "holdout": {
+    "8": {
+      "operations": {
+        "attempted": 100,
+        "pending": 0,
+        "status_counts": {
+          "ok": 100
+        },
+        "inference_attempts": 100,
+        "provider_failure_rate": 0.0,
+        "validation_failure_rate": 0.0,
+        "overall_failure_rate": 0.0,
+        "cost_known_usd": 0.0135754,
+        "cost_coverage_images": 100,
+        "cost_total_usd": 0.0135754,
+        "cost_per_inference_image_usd": 0.000135754,
+        "cost_per_1000_images_usd": 0.135754,
+        "cost_sources": {
+          "provider": 100
+        },
+        "latency_ms": {
+          "p50": 4979.167416575365,
+          "p90": 7372.6797292009,
+          "p95": 8893.179962015709,
+          "mean": 5588.494850797579
+        }
+      },
+      "quality": {
+        "spearman": 0.6936224384526948,
+        "top_k": [
+          {
+            "k": 10,
+            "selected": 10,
+            "numerically_labelled": 10,
+            "unlabelled_or_unjudgeable": 0,
+            "incompatible_labels": 0,
+            "precision_human_2_or_3": 0.7,
+            "human_3_found": 1,
+            "human_3_total": 3,
+            "recall_human_3": 0.3333333333333333,
+            "boundary_tie_crosses_k": false,
+            "boundary_tie_size": 2
+          },
+          {
+            "k": 20,
+            "selected": 20,
+            "numerically_labelled": 20,
+            "unlabelled_or_unjudgeable": 0,
+            "incompatible_labels": 0,
+            "precision_human_2_or_3": 0.65,
+            "human_3_found": 2,
+            "human_3_total": 3,
+            "recall_human_3": 0.6666666666666666,
+            "boundary_tie_crosses_k": true,
+            "boundary_tie_size": 9
+          }
+        ]
+      }
+    },
+    "9": {
+      "operations": {
+        "attempted": 4,
+        "pending": 96,
+        "status_counts": {
+          "ok": 2,
+          "validation_error": 2
+        },
+        "inference_attempts": 4,
+        "provider_failure_rate": 0.0,
+        "validation_failure_rate": 0.5,
+        "overall_failure_rate": 0.5,
+        "cost_known_usd": 0.00122283,
+        "cost_coverage_images": 4,
+        "cost_total_usd": 0.00122283,
+        "cost_per_inference_image_usd": 0.0003057075,
+        "cost_per_1000_images_usd": 0.3057075,
+        "cost_sources": {
+          "provider": 4
+        },
+        "latency_ms": {
+          "p50": 6931.201500003226,
+          "p90": 7639.181462582201,
+          "p95": 7762.921856250614,
+          "mean": 6690.467624983285
+        }
+      },
+      "quality": null
+    },
+    "10": {
+      "operations": {
+        "attempted": 100,
+        "pending": 0,
+        "status_counts": {
+          "ok": 100
+        },
+        "inference_attempts": 100,
+        "provider_failure_rate": 0.0,
+        "validation_failure_rate": 0.0,
+        "overall_failure_rate": 0.0,
+        "cost_known_usd": 0.01444015,
+        "cost_coverage_images": 100,
+        "cost_total_usd": 0.01444015,
+        "cost_per_inference_image_usd": 0.0001444015,
+        "cost_per_1000_images_usd": 0.14440150000000002,
+        "cost_sources": {
+          "provider": 100
+        },
+        "latency_ms": {
+          "p50": 3391.8899580603465,
+          "p90": 5582.2037715232,
+          "p95": 5877.950548613443,
+          "mean": 3530.3685671114363
+        }
+      },
+      "quality": {
+        "spearman": 0.5586336332974161,
+        "top_k": [
+          {
+            "k": 10,
+            "selected": 10,
+            "numerically_labelled": 10,
+            "unlabelled_or_unjudgeable": 0,
+            "incompatible_labels": 0,
+            "precision_human_2_or_3": 0.6,
+            "human_3_found": 0,
+            "human_3_total": 3,
+            "recall_human_3": 0.0,
+            "boundary_tie_crosses_k": true,
+            "boundary_tie_size": 14
+          },
+          {
+            "k": 20,
+            "selected": 20,
+            "numerically_labelled": 20,
+            "unlabelled_or_unjudgeable": 0,
+            "incompatible_labels": 0,
+            "precision_human_2_or_3": 0.5,
+            "human_3_found": 0,
+            "human_3_total": 3,
+            "recall_human_3": 0.0,
+            "boundary_tie_crosses_k": true,
+            "boundary_tie_size": 14
+          }
+        ]
+      }
+    }
+  },
+  "moments": {
+    "quality": {
+      "isolated": {
+        "agreement": 0.575,
+        "correct": 23,
+        "groups": 40,
+        "pending": 0,
+        "strict_preferred_agreement": 0.5,
+        "wilson_95": [
+          0.42195068541991465,
+          0.7149060744004929
+        ]
+      },
+      "joint": {
+        "agreement": 0.675,
+        "correct": 27,
+        "groups": 40,
+        "pending": 0,
+        "strict_preferred_agreement": 0.625,
+        "wilson_95": [
+          0.5201774618987811,
+          0.7991549776821703
+        ]
+      }
+    },
+    "paired": {
+      "bootstrap_95": [
+        -0.075,
+        0.275
+      ],
+      "both_correct": 18,
+      "both_wrong": 8,
+      "completed_groups": 40,
+      "gain": 0.1,
+      "isolated_only": 5,
+      "joint_only": 9,
+      "mcnemar_exact_p": 0.4239501953125
+    },
+    "operations": {
+      "isolated": {
+        "cost_coverage": 116,
+        "cost_known_usd": 0.0163265,
+        "cost_per_group_usd": 0.0004081625,
+        "cost_total_usd": 0.0163265,
+        "errors": 3,
+        "group_latency_ms": {
+          "p50": 16602.631916524842,
+          "p95": 38489.71850689267
+        },
+        "latency_total_ms": 737264.0874586068,
+        "requests": 116
+      },
+      "joint": {
+        "cost_coverage": 40,
+        "cost_known_usd": 0.008579875,
+        "cost_per_group_usd": 0.00021449687500000003,
+        "cost_total_usd": 0.008579875,
+        "errors": 0,
+        "group_latency_ms": {
+          "p50": 4962.327124550939,
+          "p95": 7923.504940152626
+        },
+        "latency_total_ms": 217552.50367010012,
+        "requests": 40
+      },
+      "order": {
+        "cost_coverage": 10,
+        "cost_known_usd": 0.0022937,
+        "cost_per_group_usd": 0.00022937,
+        "cost_total_usd": 0.0022937,
+        "errors": 1,
+        "group_latency_ms": {
+          "p50": 4698.970313067548,
+          "p95": 14030.959876859552
+        },
+        "latency_total_ms": 63800.89187528938,
+        "requests": 10
+      }
+    },
+    "random_expected_agreement": 0.4625,
+    "first_chronological_agreement": 0.375,
+    "stability": {
+      "human_retest_agreement": 1.0,
+      "human_retest_judged": 9,
+      "order_checks_attempted": 10,
+      "order_checks_planned": 10,
+      "order_checks_stable": 5,
+      "order_checks_valid": 9
+    },
+    "strata": {
+      "equivalent_alternatives": {
+        "groups": 9,
+        "isolated": 0.7777777777777778,
+        "joint": 0.8888888888888888
+      },
+      "unique_human_choice": {
+        "groups": 31,
+        "isolated": 0.5161290322580645,
+        "joint": 0.6129032258064516
+      }
+    }
+  },
+  "diagnostic": {
+    "sensitivity": {
+      "primary": {
+        "groups": 40,
+        "isolated_correct": 23,
+        "joint_correct": 27,
+        "gain": 0.1
+      },
+      "without_errors": {
+        "groups": 38,
+        "isolated_correct": 23,
+        "joint_correct": 27,
+        "gain": 0.10526315789473684
+      },
+      "without_scope_change": {
+        "groups": 39,
+        "isolated_correct": 22,
+        "joint_correct": 26,
+        "gain": 0.10256410256410256
+      },
+      "both_restrictions": {
+        "groups": 37,
+        "isolated_correct": 22,
+        "joint_correct": 26,
+        "gain": 0.10810810810810811
+      }
+    },
+    "order_transitions": {
+      "valid_pairs": 9,
+      "acceptable_both": 5,
+      "harmful": 2,
+      "helpful": 1,
+      "unacceptable_both": 1,
+      "equivalent_alternative_changes": 1
+    }
+  }
+}
